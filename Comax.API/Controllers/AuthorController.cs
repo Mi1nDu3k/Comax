@@ -1,0 +1,54 @@
+﻿
+using Comax.Business.Services.Interfaces;
+using Comax.Common.DTOs.Author;
+using Microsoft.AspNetCore.Mvc;
+
+[Route("api/[controller]")]
+[ApiController]
+public class AuthorController : ControllerBase
+{
+    private readonly IAuthorService _service;
+
+    public AuthorController(IAuthorService service)
+    {
+        _service = service;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var authors = await _service.GetAllAsync();
+        return Ok(authors);
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        var author = await _service.GetByIdAsync(id);
+        if (author == null) return NotFound();
+        return Ok(author);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] AuthorCreateDTO dto)
+    {
+        var author = await _service.CreateAsync(dto);
+        return CreatedAtAction(nameof(GetById), new { id = author.Id }, author);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, [FromBody] AuthorUpdateDTO dto)
+    {
+        var author = await _service.UpdateAsync(id, dto);
+        if (author == null) return NotFound();
+        return Ok(author);
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var result = await _service.DeleteAsync(id);
+        if (!result) return NotFound();
+        return NoContent();
+    }
+}
