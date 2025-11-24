@@ -36,5 +36,12 @@ namespace Comax.API.Controllers
             var users = await _userService.GetAllAsync();
             return Ok(users);
         }
+        [HttpDelete]
+        public async Task<bool> DeleteAsync(int id)
+        {
+            var entity = await _userService.GetByIdAsync(id);
+            await _userService.DeleteAsync(id);
+            return true;
+        }
     }
 }

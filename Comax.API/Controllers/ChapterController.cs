@@ -1,6 +1,7 @@
 ﻿using Comax.Business.Interfaces;
 using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs.Chapter;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Comax.API.Controllers
@@ -31,6 +32,7 @@ namespace Comax.API.Controllers
             return Ok(chapter);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<ActionResult<ChapterDTO>> Create([FromBody] ChapterCreateDTO dto)
         {
@@ -46,6 +48,7 @@ namespace Comax.API.Controllers
             return Ok(updated);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

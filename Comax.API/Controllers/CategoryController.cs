@@ -1,6 +1,7 @@
 ﻿using Comax.Business.Interfaces;
 using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs.Category;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Comax.API.Controllers
@@ -31,6 +32,7 @@ namespace Comax.API.Controllers
             return Ok(category);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<ActionResult<CategoryDTO>> Create([FromBody] CategoryCreateDTO dto)
         {
@@ -45,7 +47,7 @@ namespace Comax.API.Controllers
             if (updated == null) return NotFound();
             return Ok(updated);
         }
-
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {

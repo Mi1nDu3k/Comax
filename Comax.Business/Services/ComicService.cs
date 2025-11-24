@@ -4,7 +4,9 @@ using Comax.Common.DTOs.Comic;
 using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
 using Comax.Business.Interfaces;
+
 namespace Comax.Business.Services
+
 {
     public class ComicService : IComicService
     {
@@ -16,7 +18,7 @@ namespace Comax.Business.Services
             _repo = repo;
             _mapper = mapper;
         }
-
+        
         public async Task<ComicDTO> CreateAsync(ComicCreateDTO dto)
         {
             var entity = _mapper.Map<Comic>(dto);

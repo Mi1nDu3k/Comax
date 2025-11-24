@@ -1,6 +1,7 @@
 ﻿
 using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs.Author;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 [Route("api/[controller]")]
@@ -28,7 +29,7 @@ public class AuthorController : ControllerBase
         if (author == null) return NotFound();
         return Ok(author);
     }
-
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AuthorCreateDTO dto)
     {
@@ -43,7 +44,7 @@ public class AuthorController : ControllerBase
         if (author == null) return NotFound();
         return Ok(author);
     }
-
+    [Authorize(Roles = "Admin")]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {

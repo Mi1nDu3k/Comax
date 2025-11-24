@@ -14,9 +14,9 @@ namespace Comax.Mapping
         public MappingProfile()
         {
             // Author
-            CreateMap<Author, AuthorDTO>();
-            CreateMap<AuthorCreateDTO, Author>();
-            CreateMap<AuthorUpdateDTO, Author>();
+            //CreateMap<Author, AuthorDTO>();
+            //CreateMap<AuthorCreateDTO, Author>();
+            //CreateMap<AuthorUpdateDTO, Author>();
 
             // Category
             CreateMap<Category, CategoryDTO>();
