@@ -1,42 +1,42 @@
 ﻿using Comax.Business.Interfaces;
-using Comax.Business.Services;
-using Comax.Common.DTOs;
-using Comax.Common.DTOs.Rating;
+using Comax.Common.DTOs.Comment;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/[controller]")]
 public class CommentController : ControllerBase
 {
-    private readonly IRatingService _service;
-    public CommentController(IRatingService service) { _service = service; }
+    // Sửa lỗi: Inject ICommentService, không phải IRatingService
+    private readonly ICommentService _service;
+    public CommentController(ICommentService service) { _service = service; }
 
     [HttpGet("{comicId}")]
     public async Task<IActionResult> GetByComic(int comicId)
     {
-        var ratings = await _service.GetByComicAsync(comicId);
-        return Ok(ratings);
+        var comments = await _service.GetByComicAsync(comicId);
+        return Ok(comments);
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create(RatingCreateDTO dto)
+    public async Task<IActionResult> Create([FromBody] CommentCreateDTO dto)
     {
-        var rating = await _service.CreateAsync(dto);
-        return Ok(rating);
+        var comment = await _service.CreateAsync(dto);
+        return Ok(comment);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, RatingUpdateDTO dto)
+    public async Task<IActionResult> Update(int id, [FromBody] CommentUpdateDTO dto)
     {
-        var rating = await _service.UpdateAsync(id, dto);
-        if (rating == null) return NotFound();
-        return Ok(rating);
+        var comment = await _service.UpdateAsync(id, dto);
+        if (comment == null) return NotFound();
+        return Ok(comment);
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id, [FromQuery] bool hardDelete = false)
     {
-        var result = await _service.DeleteAsync(id);
+        var result = await _service.DeleteAsync(id, hardDelete);
         if (!result) return NotFound();
         return NoContent();
     }

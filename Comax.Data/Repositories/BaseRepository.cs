@@ -1,4 +1,5 @@
 ﻿using Comax.Data;
+using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -39,12 +40,48 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
         return entity; // phải trả entity
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<(List<T> Items, int TotalCount)> GetAllPagedAsync(int pageNumber, int pageSize)
     {
-        var entity = await _context.Set<T>().FindAsync(id);
+        var query = _dbSet.AsQueryable();
+
+        // 1. Đếm tổng số lượng (trước khi Skip/Take)
+        var totalCount = await query.CountAsync();
+
+        // 2. Phân trang
+        var items = await query
+            .Skip((pageNumber - 1) * pageSize) // Bỏ qua các item của trang trước
+            .Take(pageSize)                   // Chỉ lấy số item của trang hiện tại
+            .ToListAsync();
+
+        return (items, totalCount);
+    }
+
+    public async Task<bool> DeleteAsync(int id, bool hardDelete = false)
+    {
+        var entity = await _dbSet.FindAsync(id);
         if (entity == null) return false;
 
-        _context.Set<T>().Remove(entity);
+        if (hardDelete)
+        {
+            // Xóa vĩnh viễn
+            _dbSet.Remove(entity);
+        }
+        else
+        {
+            // Soft Delete: Chỉ thực hiện nếu entity có kế thừa BaseEntity
+            if (entity is BaseEntity baseEntity)
+            {
+                baseEntity.IsDeleted = true;
+                baseEntity.DeletedAt = DateTime.UtcNow;
+                _dbSet.Update(entity);
+            }
+            else
+            {
+                // Nếu entity không hỗ trợ soft delete (không có IsDeleted), buộc phải xóa cứng hoặc báo lỗi
+                _dbSet.Remove(entity);
+            }
+        }
+
         await _context.SaveChangesAsync();
         return true;
     }

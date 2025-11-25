@@ -18,13 +18,7 @@ namespace Comax.Business.Services
 
         public async Task<Rating> CreateAsync(RatingCreateDTO dto)
         {
-            var rating = new Rating
-            {
-                Score = dto.Score,
-                Comment = dto.Comment,
-                ComicId = dto.ComicId,
-                UserId = dto.UserId
-            };
+            var rating = new Rating { Score = dto.Score, Comment = dto.Comment, ComicId = dto.ComicId, UserId = dto.UserId };
             return await _repo.AddAsync(rating);
         }
 
@@ -38,7 +32,8 @@ namespace Comax.Business.Services
             return await _repo.UpdateAsync(rating);
         }
 
-        public async Task<bool> DeleteAsync(int id) => await _repo.DeleteAsync(id);
+        public async Task<bool> DeleteAsync(int id, bool hardDelete = false)
+            => await _repo.DeleteAsync(id, hardDelete);
 
         public async Task<List<Rating>> GetByComicAsync(int comicId) => await _repo.GetByComicAsync(comicId);
 

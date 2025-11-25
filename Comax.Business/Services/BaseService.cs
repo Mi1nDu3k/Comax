@@ -3,6 +3,9 @@ using Comax.Business.Interfaces;
 using Comax.Data.Repositories.Interfaces;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using Comax.Data.Entities;
+using System;
+using Comax.Common.DTOs.Pagination; // Cần import
 
 namespace Comax.Business.Services
 {
@@ -19,6 +22,22 @@ namespace Comax.Business.Services
             _mapper = mapper;
         }
 
+        // THÊM: Implementation phân trang
+        public async Task<PagedList<TDto>> GetAllPagedAsync(PaginationParams @params)
+        {
+            var (entities, totalCount) = await _repo.GetAllPagedAsync(@params.PageNumber, @params.PageSize);
+
+            var dtos = _mapper.Map<IEnumerable<TDto>>(entities);
+
+            return new PagedList<TDto>(
+                dtos,
+                totalCount,
+                @params.PageNumber,
+                @params.PageSize
+            );
+        }
+
+        // Dùng lại các phương thức đã có:
         public async Task<TDto> CreateAsync(TCreateDto dto)
         {
             var entity = _mapper.Map<TEntity>(dto);
@@ -26,15 +45,13 @@ namespace Comax.Business.Services
             return _mapper.Map<TDto>(entity);
         }
 
-        public async Task<bool> DeleteAsync(int id)
+        public async Task<bool> DeleteAsync(int id, bool hardDelete = false)
         {
             var entity = await _repo.GetByIdAsync(id);
             if (entity == null) return false;
 
-            await _repo.DeleteAsync(entity.Id); // OK vì TEntity có Id
-            return true;
+            return await _repo.DeleteAsync(id, hardDelete);
         }
-
 
         public async Task<IEnumerable<TDto>> GetAllAsync()
         {
@@ -54,6 +71,8 @@ namespace Comax.Business.Services
             if (entity == null) throw new Exception("Entity not found");
 
             _mapper.Map(dto, entity);
+            entity.UpdatedAt = DateTime.UtcNow;
+
             await _repo.UpdateAsync(entity);
             return _mapper.Map<TDto>(entity);
         }

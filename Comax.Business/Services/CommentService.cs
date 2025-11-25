@@ -35,7 +35,13 @@ namespace Comax.Business.Services
             return await _repo.UpdateAsync(comment);
         }
 
-        public async Task<bool> DeleteAsync(int id) => await _repo.DeleteAsync(id);
+        public async Task<bool> DeleteAsync(int id, bool hardDelete = false)
+        {
+            var entity = await _repo.GetByIdAsync(id);
+            if (entity == null) return false;
+            // logic soft delete nằm ở repo, gọi xuống repo
+            return await _repo.DeleteAsync(id, hardDelete);
+        }
 
         public async Task<List<Comment>> GetByComicAsync(int comicId) => await _repo.GetByComicAsync(comicId);
     }

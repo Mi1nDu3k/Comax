@@ -1,6 +1,6 @@
-﻿using Comax.Business.Interfaces;
-using Comax.Business.Services.Interfaces;
+﻿using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs.Comic;
+using Comax.Common.DTOs.Pagination;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,10 +18,10 @@ namespace Comax.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<ComicDTO>>> GetAll()
+        public async Task<ActionResult<PagedList<ComicDTO>>> GetAll([FromQuery] PaginationParams @params)
         {
-            var comics = await _comicService.GetAllAsync();
-            return Ok(comics);
+            var pagedList = await _comicService.GetAllPagedAsync(@params);
+            return Ok(pagedList);
         }
 
         [HttpGet("{id}")]
@@ -35,8 +35,7 @@ namespace Comax.API.Controllers
         [HttpGet("search")]
         public async Task<ActionResult<IEnumerable<ComicDTO>>> Search([FromQuery] string title)
         {
-            var comics = await _comicService.SearchByTitleAsync(title);
-            return Ok(comics);
+            return Ok(await _comicService.SearchByTitleAsync(title));
         }
 
         [Authorize(Roles = "Admin")]
@@ -47,6 +46,7 @@ namespace Comax.API.Controllers
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id}")]
         public async Task<ActionResult<ComicDTO>> Update(int id, [FromBody] ComicUpdateDTO dto)
         {
@@ -57,9 +57,9 @@ namespace Comax.API.Controllers
 
         [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(int id, [FromQuery] bool hardDelete = false)
         {
-            var result = await _comicService.DeleteAsync(id);
+            var result = await _comicService.DeleteAsync(id, hardDelete);
             if (!result) return NotFound();
             return NoContent();
         }

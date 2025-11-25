@@ -12,7 +12,8 @@ namespace Comax.Business.Interfaces
     {
         Task<Comment> CreateAsync(CommentCreateDTO dto);
         Task<Comment?> UpdateAsync(int id, CommentUpdateDTO dto);
-        Task<bool> DeleteAsync(int id);
+        // Cập nhật tham số
+        Task<bool> DeleteAsync(int id, bool hardDelete = false);
         Task<List<Comment>> GetByComicAsync(int comicId);
     }
 }

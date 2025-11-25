@@ -9,6 +9,7 @@ namespace Comax.Data.Repositories.Interfaces
         Task<T?> GetByIdAsync(int id);
         Task<T> AddAsync(T entity);        // phải trả entity
         Task<T?> UpdateAsync(T entity);    // phải trả entity
-        Task<bool> DeleteAsync(int id);
+        Task<bool> DeleteAsync(int id, bool hardDelete = false);
+        Task<(List<T> Items, int TotalCount)> GetAllPagedAsync(int pageNumber, int pageSize);
     }
 }

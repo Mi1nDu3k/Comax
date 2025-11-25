@@ -17,16 +17,19 @@ namespace Comax.API.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<ActionResult<UserDTO>> Register([FromBody] RegisterDTO dto)
+        public async Task<ActionResult<AuthResultDTO>> Register([FromBody] RegisterDTO dto)
         {
-            var user = await _userService.RegisterAsync(dto);
-            return Ok(user);
+            // Note: RegisterAsync trả về AuthResultDTO chứ không phải UserDTO (dựa theo service)
+            var result = await _userService.RegisterAsync(dto);
+            if (!result.Success) return BadRequest(result);
+            return Ok(result);
         }
 
         [HttpPost("login")]
         public async Task<ActionResult<AuthResultDTO>> Login([FromBody] LoginDTO dto)
         {
             var result = await _userService.LoginAsync(dto);
+            if (!result.Success) return Unauthorized(result);
             return Ok(result);
         }
 
@@ -36,12 +39,14 @@ namespace Comax.API.Controllers
             var users = await _userService.GetAllAsync();
             return Ok(users);
         }
-        [HttpDelete]
-        public async Task<bool> DeleteAsync(int id)
+
+        // Cập nhật: Delete với hardDelete
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id, [FromQuery] bool hardDelete = false)
         {
-            var entity = await _userService.GetByIdAsync(id);
-            await _userService.DeleteAsync(id);
-            return true;
+            var result = await _userService.DeleteAsync(id, hardDelete);
+            if (!result) return NotFound();
+            return NoContent();
         }
     }
 }

@@ -1,5 +1,4 @@
-﻿using Comax.Business.Interfaces;
-using Comax.Business.Services.Interfaces;
+﻿using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs.Chapter;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,8 +19,7 @@ namespace Comax.API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ChapterDTO>>> GetAll()
         {
-            var chapters = await _chapterService.GetAllAsync();
-            return Ok(chapters);
+            return Ok(await _chapterService.GetAllAsync());
         }
 
         [HttpGet("{id}")]
@@ -40,6 +38,7 @@ namespace Comax.API.Controllers
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id}")]
         public async Task<ActionResult<ChapterDTO>> Update(int id, [FromBody] ChapterUpdateDTO dto)
         {
@@ -50,9 +49,9 @@ namespace Comax.API.Controllers
 
         [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(int id, [FromQuery] bool hardDelete = false)
         {
-            var result = await _chapterService.DeleteAsync(id);
+            var result = await _chapterService.DeleteAsync(id, hardDelete);
             if (!result) return NotFound();
             return NoContent();
         }

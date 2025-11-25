@@ -1,8 +1,9 @@
 ﻿namespace Comax.Data.Entities
 {
-    public class Chapter
+    // Thêm kế thừa BaseEntity
+    public class Chapter : BaseEntity
     {
-        public int Id { get; set; }
+        // Xóa public int Id { get; set; }
         public string Title { get; set; }
         public int Order { get; set; }
         public string Content { get; set; }

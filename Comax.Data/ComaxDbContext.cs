@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Comax.Data.Entities;
+using System.Reflection; // Cần thêm thư viện này
 
 namespace Comax.Data
 {
@@ -73,6 +74,27 @@ namespace Comax.Data
                 .HasOne(c => c.Comic)
                 .WithMany()
                 .HasForeignKey(c => c.ComicId);
+
+            // --- CẤU HÌNH SOFT DELETE (ĐÃ SỬA) ---
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                // Kiểm tra xem Entity có kế thừa BaseEntity không
+                if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+                {
+                    // Sử dụng Reflection để gọi hàm SetSoftDeleteFilter với kiểu T cụ thể (ví dụ: SetSoftDeleteFilter<Comment>)
+                    var method = typeof(ComaxDbContext)
+                        .GetMethod(nameof(SetSoftDeleteFilter), BindingFlags.NonPublic | BindingFlags.Static)
+                        ?.MakeGenericMethod(entityType.ClrType);
+
+                    method?.Invoke(null, new object[] { modelBuilder });
+                }
+            }
+        }
+
+        // Hàm helper này sẽ tạo ra Expression<Func<T, bool>> chính xác cho từng loại Entity
+        private static void SetSoftDeleteFilter<T>(ModelBuilder modelBuilder) where T : BaseEntity
+        {
+            modelBuilder.Entity<T>().HasQueryFilter(x => !x.IsDeleted);
         }
     }
 }

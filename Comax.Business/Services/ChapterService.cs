@@ -1,15 +1,15 @@
 ﻿using AutoMapper;
+using Comax.Business.Services;
 using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs.Chapter;
 using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
 
-public class ChapterService : IChapterService
+public class ChapterService : BaseService<Chapter, ChapterDTO, ChapterCreateDTO, ChapterUpdateDTO>, IChapterService
 {
     private readonly IChapterRepository _repo;
     private readonly IMapper _mapper;
-
-    public ChapterService(IChapterRepository repo, IMapper mapper)
+    public ChapterService(IChapterRepository repo, IMapper mapper): base(repo, mapper)
     {
         _repo = repo;
         _mapper = mapper;
@@ -30,11 +30,11 @@ public class ChapterService : IChapterService
         return _mapper.Map<ChapterDTO>(entity);
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public async Task<bool> DeleteAsync(int id, bool hardDelete = false)
     {
         var entity = await _repo.GetByIdAsync(id);
-        await _repo.DeleteAsync(entity.Id);
-        return true;
+        if (entity == null) return false;
+        return await _repo.DeleteAsync(entity.Id, hardDelete);
     }
 
     public async Task<ChapterDTO?> GetByIdAsync(int id)

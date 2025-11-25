@@ -1,10 +1,9 @@
-﻿using Comax.Common.DTOs;
-
-namespace Comax.Data.Entities
+﻿namespace Comax.Data.Entities
 {
-    public class Author
+    // Thêm kế thừa BaseEntity
+    public class Author : BaseEntity
     {
-        public int Id { get; set; }
+        // Xóa public int Id { get; set; } vì đã có ở BaseEntity
         public string Name { get; set; }
         public ICollection<Comic> Comics { get; set; }
     }

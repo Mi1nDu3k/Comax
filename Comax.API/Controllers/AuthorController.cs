@@ -18,8 +18,7 @@ public class AuthorController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var authors = await _service.GetAllAsync();
-        return Ok(authors);
+        return Ok(await _service.GetAllAsync());
     }
 
     [HttpGet("{id}")]
@@ -29,6 +28,7 @@ public class AuthorController : ControllerBase
         if (author == null) return NotFound();
         return Ok(author);
     }
+
     [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AuthorCreateDTO dto)
@@ -37,6 +37,7 @@ public class AuthorController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = author.Id }, author);
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] AuthorUpdateDTO dto)
     {
@@ -44,11 +45,12 @@ public class AuthorController : ControllerBase
         if (author == null) return NotFound();
         return Ok(author);
     }
+
     [Authorize(Roles = "Admin")]
     [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id)
+    public async Task<IActionResult> Delete(int id, [FromQuery] bool hardDelete = false)
     {
-        var result = await _service.DeleteAsync(id);
+        var result = await _service.DeleteAsync(id, hardDelete);
         if (!result) return NotFound();
         return NoContent();
     }

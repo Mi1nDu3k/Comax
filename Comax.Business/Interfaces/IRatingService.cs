@@ -7,13 +7,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+// ... imports
 namespace Comax.Business.Interfaces
 {
     public interface IRatingService
     {
         Task<Rating> CreateAsync(RatingCreateDTO dto);
         Task<Rating?> UpdateAsync(int id, RatingUpdateDTO dto);
-        Task<bool> DeleteAsync(int id);
+        // Cập nhật tham số
+        Task<bool> DeleteAsync(int id, bool hardDelete = false);
         Task<List<Rating>> GetByComicAsync(int comicId);
         Task<double> GetAverageScoreAsync(int comicId);
     }
