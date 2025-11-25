@@ -34,6 +34,8 @@ builder.Services.AddScoped<IComicRepository, ComicRepository>();
 builder.Services.AddScoped<IChapterRepository, ChapterRepository>();
 builder.Services.AddScoped<IAuthorRepository, AuthorRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<IRatingRepository, RatingRepository>();
+builder.Services.AddScoped<ICommentRepository, CommentRepository>();
 
 // 4. Add Services
 builder.Services.AddScoped<IUserService, UserService>();
@@ -41,6 +43,8 @@ builder.Services.AddScoped<IComicService, ComicService>();
 builder.Services.AddScoped<IChapterService, ChapterService>();
 builder.Services.AddScoped<IAuthorService, AuthorService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
+builder.Services.AddScoped<IRatingService, RatingService>();
+builder.Services.AddScoped<ICommentService, CommentService>();
 
 // 5. Controllers + FluentValidation
 builder.Services.AddControllers();

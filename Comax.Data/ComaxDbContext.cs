@@ -13,6 +13,8 @@ namespace Comax.Data
         public DbSet<Category> Categories { get; set; }
         public DbSet<Comic> Comics { get; set; }
         public DbSet<Chapter> Chapters { get; set; }
+        public DbSet<Rating> Ratings { get; set; } = null!;
+        public DbSet<Comment> Comments { get; set; } = null!;
         public DbSet<ComicCategory> ComicCategories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -51,6 +53,26 @@ namespace Comax.Data
                 .HasOne(cc => cc.Category)
                 .WithMany(c => c.ComicCategories)
                 .HasForeignKey(cc => cc.CategoryId);
+
+            modelBuilder.Entity<Rating>()
+               .HasOne(r => r.User)
+               .WithMany()
+               .HasForeignKey(r => r.UserId);
+
+            modelBuilder.Entity<Rating>()
+                .HasOne(r => r.Comic)
+                .WithMany()
+                .HasForeignKey(r => r.ComicId);
+
+            modelBuilder.Entity<Comment>()
+                .HasOne(c => c.User)
+                .WithMany()
+                .HasForeignKey(c => c.UserId);
+
+            modelBuilder.Entity<Comment>()
+                .HasOne(c => c.Comic)
+                .WithMany()
+                .HasForeignKey(c => c.ComicId);
         }
     }
 }

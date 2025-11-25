@@ -53,7 +53,7 @@ namespace Comax.Business.Services
             var category = await _repo.GetByIdAsync(id);
             if (category == null) return false;
 
-            await _repo.DeleteAsync(category);
+            await _repo.DeleteAsync(category.Id);
             return true;
         }
 

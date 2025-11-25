@@ -5,10 +5,10 @@ namespace Comax.Data.Repositories.Interfaces
 {
     public interface IBaseRepository<T> where T : class
     {
-        Task<IEnumerable<T>> GetAllAsync();
+        Task<List<T>> GetAllAsync();
         Task<T?> GetByIdAsync(int id);
-        Task AddAsync(T entity);
-        Task UpdateAsync(T entity);
-        Task DeleteAsync(T entity);
+        Task<T> AddAsync(T entity);        // phải trả entity
+        Task<T?> UpdateAsync(T entity);    // phải trả entity
+        Task<bool> DeleteAsync(int id);
     }
 }

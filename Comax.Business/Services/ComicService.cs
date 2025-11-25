@@ -37,7 +37,7 @@ namespace Comax.Business.Services
         public async Task<bool> DeleteAsync(int id)
         {
             var entity = await _repo.GetByIdAsync(id);
-            await _repo.DeleteAsync(entity);
+            await _repo.DeleteAsync(entity.Id);
             return true;
         }
 

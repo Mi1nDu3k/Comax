@@ -8,7 +8,7 @@ namespace Comax.Business.Services
 {
     public class BaseService<TEntity, TDto, TCreateDto, TUpdateDto> : IBaseService<TDto, TCreateDto, TUpdateDto>
         where TDto : Comax.Common.DTOs.BaseDto
-        where TEntity : class
+        where TEntity : Comax.Data.Entities.BaseEntity
     {
         protected readonly IBaseRepository<TEntity> _repo;
         protected readonly IMapper _mapper;
@@ -29,9 +29,12 @@ namespace Comax.Business.Services
         public async Task<bool> DeleteAsync(int id)
         {
             var entity = await _repo.GetByIdAsync(id);
-            await _repo.DeleteAsync(entity);
+            if (entity == null) return false;
+
+            await _repo.DeleteAsync(entity.Id); // OK vì TEntity có Id
             return true;
         }
+
 
         public async Task<IEnumerable<TDto>> GetAllAsync()
         {
@@ -48,6 +51,8 @@ namespace Comax.Business.Services
         public async Task<TDto> UpdateAsync(int id, TUpdateDto dto)
         {
             var entity = await _repo.GetByIdAsync(id);
+            if (entity == null) throw new Exception("Entity not found");
+
             _mapper.Map(dto, entity);
             await _repo.UpdateAsync(entity);
             return _mapper.Map<TDto>(entity);

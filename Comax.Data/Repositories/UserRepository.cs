@@ -1,42 +1,56 @@
 ﻿using Comax.Data;
 using Comax.Data.Entities;
+using Comax.Data.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
-public class UserRepository : IUserRepository
+public class UserRepository : BaseRepository<User>, IUserRepository
 {
     private readonly ComaxDbContext _context;
-    public UserRepository(ComaxDbContext context) => _context = context;
+    private readonly DbSet<User> _dbSet;
 
-    public async Task AddAsync(User entity)
+    public UserRepository(ComaxDbContext context) : base(context)
     {
-        await _context.Users.AddAsync(entity);
-        await _context.SaveChangesAsync();
+        _context = context;
+        _dbSet = _context.Set<User>();
     }
 
-    public async Task DeleteAsync(User entity)
+    public async Task<List<User>> GetAllAsync()
     {
-        _context.Users.Remove(entity);
-        await _context.SaveChangesAsync();
-    }
-
-    public async Task<IEnumerable<User>> GetAllAsync()
-    {
-        return await _context.Users.Include(u => u.Role).ToListAsync();
+        return await _dbSet.ToListAsync();
     }
 
     public async Task<User?> GetByIdAsync(int id)
     {
-        return await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Id == id);
+        return await _dbSet.FindAsync(id);
     }
 
+    public async Task<User> AddAsync(User entity)
+    {
+        await _dbSet.AddAsync(entity);
+        await _context.SaveChangesAsync();
+        return entity;
+    }
+
+    public async Task<User?> UpdateAsync(User entity)
+    {
+        _dbSet.Update(entity);
+        await _context.SaveChangesAsync();
+        return entity;
+    }
+
+    public async Task<bool> DeleteAsync(int id)
+    {
+        var entity = await _dbSet.FindAsync(id);
+        if (entity == null) return false;
+
+        _dbSet.Remove(entity);
+        await _context.SaveChangesAsync();
+        return true;
+    }
     public async Task<User?> GetByEmailAsync(string email)
     {
-        return await _context.Users.Include(u => u.Role).FirstOrDefaultAsync(u => u.Email == email);
-    }
-
-    public async Task UpdateAsync(User entity)
-    {
-        _context.Users.Update(entity);
-        await _context.SaveChangesAsync();
+        return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
     }
 }
