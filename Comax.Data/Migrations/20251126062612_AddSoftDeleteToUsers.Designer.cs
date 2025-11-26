@@ -4,6 +4,7 @@ using Comax.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Comax.Data.Migrations
 {
     [DbContext(typeof(ComaxDbContext))]
-    partial class ComaxDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251126062612_AddSoftDeleteToUsers")]
+    partial class AddSoftDeleteToUsers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -43,10 +46,6 @@ namespace Comax.Data.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<Guid>("RowVersion")
-                        .IsConcurrencyToken()
-                        .HasColumnType("char(36)");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -75,10 +74,6 @@ namespace Comax.Data.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("longtext");
-
-                    b.Property<Guid>("RowVersion")
-                        .IsConcurrencyToken()
-                        .HasColumnType("char(36)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
@@ -114,10 +109,6 @@ namespace Comax.Data.Migrations
 
                     b.Property<int>("Order")
                         .HasColumnType("int");
-
-                    b.Property<Guid>("RowVersion")
-                        .IsConcurrencyToken()
-                        .HasColumnType("char(36)");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -156,10 +147,6 @@ namespace Comax.Data.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
-
-                    b.Property<Guid>("RowVersion")
-                        .IsConcurrencyToken()
-                        .HasColumnType("char(36)");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -214,10 +201,6 @@ namespace Comax.Data.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<Guid>("RowVersion")
-                        .IsConcurrencyToken()
-                        .HasColumnType("char(36)");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -256,10 +239,6 @@ namespace Comax.Data.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<Guid>("RowVersion")
-                        .IsConcurrencyToken()
-                        .HasColumnType("char(36)");
-
                     b.Property<int>("Score")
                         .HasColumnType("int");
 
@@ -286,25 +265,9 @@ namespace Comax.Data.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("longtext");
-
-                    b.Property<Guid>("RowVersion")
-                        .IsConcurrencyToken()
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
 
                     b.HasKey("Id");
 
@@ -338,10 +301,6 @@ namespace Comax.Data.Migrations
 
                     b.Property<int>("RoleId")
                         .HasColumnType("int");
-
-                    b.Property<Guid>("RowVersion")
-                        .IsConcurrencyToken()
-                        .HasColumnType("char(36)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");

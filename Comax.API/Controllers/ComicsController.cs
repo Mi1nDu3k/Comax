@@ -20,6 +20,7 @@ namespace Comax.API.Controllers
         [HttpGet]
         public async Task<ActionResult<PagedList<ComicDTO>>> GetAll([FromQuery] PaginationParams @params)
         {
+            if (@params == null) @params = new PaginationParams();
             var pagedList = await _comicService.GetAllPagedAsync(@params);
             return Ok(pagedList);
         }
@@ -29,6 +30,7 @@ namespace Comax.API.Controllers
         {
             var comic = await _comicService.GetByIdAsync(id);
             if (comic == null) return NotFound();
+            Response.Headers.Add("ETag", comic.RowVersion.ToString());
             return Ok(comic);
         }
 
@@ -50,9 +52,39 @@ namespace Comax.API.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<ComicDTO>> Update(int id, [FromBody] ComicUpdateDTO dto)
         {
-            var updated = await _comicService.UpdateAsync(id, dto);
-            if (updated == null) return NotFound();
-            return Ok(updated);
+            // 1. Kiểm tra Header If-Match
+            if (!Request.Headers.TryGetValue("If-Match", out var ifMatch))
+            {
+                return StatusCode(428, "Precondition Required: Missing If-Match header."); // 428: Yêu cầu phải có Header
+            }
+
+            var clientVersionString = ifMatch.ToString().Replace("\"", ""); // Xóa dấu ngoặc kép nếu có
+            if (!Guid.TryParse(clientVersionString, out var clientVersion))
+            {
+                return BadRequest("Invalid ETag format.");
+            }
+
+            try
+            {
+                var currentEntity = await _comicService.GetByIdAsync(id);
+                if (currentEntity == null) return NotFound();
+
+                if (currentEntity.RowVersion != clientVersion)
+                {
+                    return StatusCode(412, "Precondition Failed: Data has been modified by another user.");
+                }
+
+                // 3. Thực hiện update
+                var updated = await _comicService.UpdateAsync(id, dto);
+
+                // 4. Trả về ETag mới
+                Response.Headers.Add("ETag", updated.RowVersion.ToString());
+                return Ok(updated);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
 
         [Authorize(Roles = "Admin")]

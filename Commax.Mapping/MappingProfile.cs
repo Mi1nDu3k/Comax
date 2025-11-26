@@ -16,10 +16,10 @@ namespace Comax.Mapping
     {
         public MappingProfile()
         {
-            // Author
-            //CreateMap<Author, AuthorDTO>();
-            //CreateMap<AuthorCreateDTO, Author>();
-            //CreateMap<AuthorUpdateDTO, Author>();
+            //Author
+            CreateMap<Author, AuthorDTO>();
+            CreateMap<AuthorCreateDTO, Author>();
+            CreateMap<AuthorUpdateDTO, Author>();
 
             // Category
             CreateMap<Category, CategoryDTO>();
@@ -45,6 +45,7 @@ namespace Comax.Mapping
                 CreateMap<Rating,RatingUpdateDTO>();
                 CreateMap<Comment,CommentCreateDTO>();
             CreateMap<CommentUpdateDTO, Comment>();
+
 
 
 

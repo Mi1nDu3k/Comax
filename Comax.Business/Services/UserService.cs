@@ -25,31 +25,37 @@ namespace Comax.Business.Services
             _jwtHelper = jwtHelper;
         }
 
-        // GIỮ LẠI các phương thức độc nhất: Auth
         public async Task<AuthResultDTO> RegisterAsync(RegisterDTO dto)
         {
             var existingUser = await _userRepo.GetByEmailAsync(dto.Email);
             if (existingUser != null)
-                throw new Exception("Email already exists.");
+                return new AuthResultDTO
+                {
+                    Success = false,
+                    Message = "Email has been used"
+                };
 
             var user = new User
             {
                 Username = dto.Username,
                 Email = dto.Email,
                 PasswordHash = PasswordHelper.HashPassword(dto.Password),
-                // Assuming default role is User for registration, but using RoleId from DTO
+               
                 RoleId = dto.RoleId
             };
 
             await _userRepo.AddAsync(user);
+            var createdUser = await _userRepo.GetByIdWithRoleAsync(user.Id);
 
-            // Load Role (cần Include Role trong repo GetByIdAsync để tránh lỗi)
-            var createdUser = await _userRepo.GetByIdAsync(user.Id);
+
+            if(createdUser == null) throw new Exception("User creation failed.");
 
             var token = _jwtHelper.GenerateToken(createdUser.Id.ToString(), createdUser.Role.Name);
 
             return new AuthResultDTO
             {
+                Success = true,
+                Message = "Register success!",
                 Token = token,
                 Username = createdUser.Username,
                 Role = createdUser.Role.Name
@@ -60,18 +66,27 @@ namespace Comax.Business.Services
         {
             var user = await _userRepo.GetByEmailAsync(dto.Email);
             if (user == null || !PasswordHelper.VerifyPassword(dto.Password, user.PasswordHash))
-                throw new Exception("Invalid credentials.");
+            {
+                return new AuthResultDTO
+                {
+                    Success = false,
+                    Message = "Tài khoản hoặc mật khẩu không đúng."
+                };
+            }
 
             var token = _jwtHelper.GenerateToken(user.Id.ToString(), user.Role.Name);
 
             return new AuthResultDTO
             {
+                Success = true,
+                Message = "Welcome to Comax",
                 Token = token,
                 Username = user.Username,
+                Email = user.Email,
                 Role = user.Role.Name
             };
         }
 
-        // TẤT CẢ các phương thức CRUD còn lại được KẾ THỪA.
+       
     }
 }

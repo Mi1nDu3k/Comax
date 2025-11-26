@@ -11,7 +11,7 @@ using System.Linq;
 
 namespace Comax.Business.Services
 {
-    // CẬP NHẬT: Kế thừa BaseService và triển khai IComicService
+    
     public class ComicService : BaseService<Comic, ComicDTO, ComicCreateDTO, ComicUpdateDTO>, IComicService
     {
         private readonly IComicRepository _repo;
@@ -23,13 +23,12 @@ namespace Comax.Business.Services
             _mapper = mapper;
         }
 
-        // GIỮ LẠI phương thức độc nhất: SearchByTitleAsync
         public async Task<IEnumerable<ComicDTO>> SearchByTitleAsync(string title)
         {
             var filteredEntities = await _repo.SearchByTitleAsync(title);
             return _mapper.Map<IEnumerable<ComicDTO>>(filteredEntities);
         }
 
-        // TẤT CẢ các phương thức CRUD còn lại được KẾ THỪA.
+        
     }
 }

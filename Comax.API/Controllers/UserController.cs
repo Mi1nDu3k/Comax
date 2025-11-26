@@ -19,9 +19,14 @@ namespace Comax.API.Controllers
         [HttpPost("register")]
         public async Task<ActionResult<AuthResultDTO>> Register([FromBody] RegisterDTO dto)
         {
-            // Note: RegisterAsync trả về AuthResultDTO chứ không phải UserDTO (dựa theo service)
             var result = await _userService.RegisterAsync(dto);
-            if (!result.Success) return BadRequest(result);
+
+            
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
             return Ok(result);
         }
 
@@ -29,7 +34,10 @@ namespace Comax.API.Controllers
         public async Task<ActionResult<AuthResultDTO>> Login([FromBody] LoginDTO dto)
         {
             var result = await _userService.LoginAsync(dto);
-            if (!result.Success) return Unauthorized(result);
+            if (!result.Success)
+            {
+                return Unauthorized(result);
+            }
             return Ok(result);
         }
 

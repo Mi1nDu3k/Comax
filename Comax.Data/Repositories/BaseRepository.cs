@@ -28,6 +28,10 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
 
     public async Task<T> AddAsync(T entity)
     {
+        if (entity is Comax.Data.Entities.BaseEntity baseEntity)
+        {
+            baseEntity.RowVersion = Guid.NewGuid();
+        }
         await _context.Set<T>().AddAsync(entity);
         await _context.SaveChangesAsync();
         return entity; // phải trả entity
@@ -35,9 +39,25 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
 
     public async Task<T?> UpdateAsync(T entity)
     {
+        if (entity is Comax.Data.Entities.BaseEntity baseEntity)
+        {
+      
+            baseEntity.RowVersion = Guid.NewGuid();
+        }
+
         _context.Set<T>().Update(entity);
-        await _context.SaveChangesAsync();
-        return entity; // phải trả entity
+
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            //(trả về 409 hoặc 412)
+            throw;
+        }
+
+        return entity;
     }
 
     public async Task<(List<T> Items, int TotalCount)> GetAllPagedAsync(int pageNumber, int pageSize)
