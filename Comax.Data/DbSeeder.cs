@@ -1,8 +1,8 @@
 ﻿using Comax.Data.Entities;
 using Comax.Common.Helpers;
-using System.Collections.Generic; // Đảm bảo có
-using System.Linq; // Đảm bảo có
-using Microsoft.EntityFrameworkCore; // Đảm bảo có
+using System.Collections.Generic; 
+using System.Linq; 
+using Microsoft.EntityFrameworkCore; 
 
 namespace Comax.Data
 {
@@ -10,15 +10,18 @@ namespace Comax.Data
     {
         public static void Seed(ComaxDbContext context)
         {
-            // 1. Seed Roles
-            if (!context.Roles.Any())
+         
+            var roleNames = new[] { "Admin", "User", "VipUser" };
+
+            foreach (var roleName in roleNames)
             {
-                context.Roles.AddRange(
-                    new Role { Name = "Admin" },
-                    new Role { Name = "User" }
-                );
-                context.SaveChanges();
+                
+                if (!context.Roles.Any(r => r.Name == roleName))
+                {
+                    context.Roles.Add(new Role { Name = roleName });
+                }
             }
+            context.SaveChanges(); 
 
             // 2. Seed Users
             // Lấy Role trước khi Seed User
@@ -54,6 +57,22 @@ namespace Comax.Data
 
                 context.Users.AddRange(users);
                 context.SaveChanges();
+            }
+            // Seed VipUser
+            if (!context.Users.Any(u => u.Username == "vipmember"))
+            {
+                var vipRole = context.Roles.FirstOrDefault(r => r.Name == "VipUser");
+                if (vipRole != null)
+                {
+                    context.Users.Add(new User
+                    {
+                        Username = "vipmember",
+                        Email = "vip@comax.com",
+                        PasswordHash = PasswordHelper.HashPassword("Vip@123"),
+                        RoleId = vipRole.Id
+                    });
+                    context.SaveChanges();
+                }
             }
 
             // 3. Seed Authors

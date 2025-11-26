@@ -7,5 +7,8 @@ namespace Comax.Business.Interfaces
     {
         Task<AuthResultDTO> RegisterAsync(RegisterDTO dto);
         Task<AuthResultDTO> LoginAsync(LoginDTO dto);
+        Task<List<UserDTO>> GetVipUsersAsync();
+        Task<bool> UpgradeToVipAsync(int userId);
+        Task<bool>DowngradeFromVipAsync(int userId);
     }
 }

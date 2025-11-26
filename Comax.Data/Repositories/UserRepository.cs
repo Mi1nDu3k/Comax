@@ -62,4 +62,11 @@ public class UserRepository : BaseRepository<User>, IUserRepository
                     .FirstOrDefaultAsync(u => u.Email == email);
 
     }
+    public async Task<List<User>> GetByRoleIdAsync(int roleId)
+    {
+        return await _context.Users
+            .Include(u => u.Role) // Include Role để lấy tên Role hiển thị ra DTO
+            .Where(u => u.RoleId == roleId)
+            .ToListAsync();
+    }
 }

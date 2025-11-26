@@ -8,6 +8,7 @@ using Comax.Common.DTOs.Pagination;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System;
+using Comax.Data.Repositories.Interfaces;
 
 namespace Comax.Business.Services
 {
@@ -17,12 +18,13 @@ namespace Comax.Business.Services
         private readonly IUserRepository _userRepo;
         private readonly IMapper _mapper;
         private readonly IJwtHelper _jwtHelper;
-
-        public UserService(IUserRepository userRepo, IMapper mapper, IJwtHelper jwtHelper) : base(userRepo, mapper)
+        private readonly IRoleRepository _roleRepo;
+        public UserService(IUserRepository userRepo, IMapper mapper,IRoleRepository roleRepo, IJwtHelper jwtHelper) : base(userRepo, mapper)
         {
             _userRepo = userRepo;
             _mapper = mapper;
             _jwtHelper = jwtHelper;
+            _roleRepo = roleRepo;
         }
 
         public async Task<AuthResultDTO> RegisterAsync(RegisterDTO dto)
@@ -86,7 +88,64 @@ namespace Comax.Business.Services
                 Role = user.Role.Name
             };
         }
+        public async Task<bool> UpgradeToVipAsync(int userId)
+        {
+            
+            var user = await _userRepo.GetByIdAsync(userId);
+            if (user == null) return false;
 
-       
+            
+            var vipRole = await _roleRepo.GetByNameAsync("VipUser"); 
+            if (vipRole == null) throw new Exception("Role 'VipUser' not found in database.");
+
+           
+            if (user.RoleId == vipRole.Id) return true;
+
+           
+            user.RoleId = vipRole.Id;
+
+           
+            await _userRepo.UpdateAsync(user);
+
+            return true;
+        }
+        public async Task<bool> DowngradeFromVipAsync(int userId)
+        {
+
+            var user = await _userRepo.GetByIdAsync(userId);
+            if (user == null) return false;
+
+
+            var userRole = await _roleRepo.GetByNameAsync("User");
+            if (userRole == null) throw new Exception("Default Role 'User' not found.");
+
+            if (user.RoleId == userRole.Id) return true;
+
+ 
+            user.RoleId = userRole.Id;
+
+            
+            await _userRepo.UpdateAsync(user);
+
+            return true;
+        }
+        public async Task<List<UserDTO>> GetVipUsersAsync()
+        {
+            
+            var vipRole = await _roleRepo.GetByNameAsync("VipUser");
+
+            if (vipRole == null)
+            {
+               
+                return new List<UserDTO>();
+            }
+
+            
+            var users = await _userRepo.GetByRoleIdAsync(vipRole.Id);
+
+            
+            return _mapper.Map<List<UserDTO>>(users);
+        }
+
     }
 }

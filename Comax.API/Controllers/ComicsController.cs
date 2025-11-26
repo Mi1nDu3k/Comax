@@ -33,6 +33,12 @@ namespace Comax.API.Controllers
             Response.Headers.Add("ETag", comic.RowVersion.ToString());
             return Ok(comic);
         }
+        [Authorize(Roles = "Admin, VipUser")]
+        [HttpGet("premium-content")]
+        public IActionResult GetPremiumContent()
+        {
+            return Ok("Nội dung dành riêng cho VIP");
+        }
         [HttpPost("{id}/view")]
         public async Task<IActionResult> IncreaseView(int id)
         {
