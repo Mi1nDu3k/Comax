@@ -11,5 +11,7 @@ namespace Comax.Data.Entities
         public DateTime? DeletedAt { get; set; }
         [ConcurrencyCheck]
         public Guid RowVersion { get; set; } = Guid.NewGuid();
+
+        public int ViewCount { get; set; } = 0;
     }
 }

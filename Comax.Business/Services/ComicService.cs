@@ -28,7 +28,16 @@ namespace Comax.Business.Services
             var filteredEntities = await _repo.SearchByTitleAsync(title);
             return _mapper.Map<IEnumerable<ComicDTO>>(filteredEntities);
         }
+        public async Task IncreaseViewCountAsync(int id)
+        {
+            var comic = await _repo.GetByIdAsync(id);
+            if (comic != null)
+            {
+                comic.ViewCount++;
+                await _repo.UpdateAsync(comic);
+            }
+        }
 
-        
+
     }
 }

@@ -36,6 +36,7 @@ builder.Services.AddScoped<IAuthorRepository, AuthorRepository>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<IRatingRepository, RatingRepository>();
 builder.Services.AddScoped<ICommentRepository, CommentRepository>();
+builder.Services.AddScoped<IReportRepository, ReportRepository>();
 
 // 4. Add Services
 builder.Services.AddScoped<IUserService, UserService>();
@@ -45,6 +46,7 @@ builder.Services.AddScoped<IAuthorService, AuthorService>();
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<IRatingService, RatingService>();
 builder.Services.AddScoped<ICommentService, CommentService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 
 // 5. Controllers + FluentValidation
 builder.Services.AddControllers();

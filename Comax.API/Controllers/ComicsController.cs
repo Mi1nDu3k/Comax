@@ -33,7 +33,12 @@ namespace Comax.API.Controllers
             Response.Headers.Add("ETag", comic.RowVersion.ToString());
             return Ok(comic);
         }
-
+        [HttpPost("{id}/view")]
+        public async Task<IActionResult> IncreaseView(int id)
+        {
+            await _comicService.IncreaseViewCountAsync(id);
+            return Ok();
+        }
         [HttpGet("search")]
         public async Task<ActionResult<IEnumerable<ComicDTO>>> Search([FromQuery] string title)
         {
