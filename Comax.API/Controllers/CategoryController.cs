@@ -22,6 +22,15 @@ namespace Comax.API.Controllers
             return Ok(await _categoryService.GetAllAsync());
         }
 
+        [HttpGet("slug/{slug}")]
+        public async Task<ActionResult<CategoryDTO>> GetBySlug(string slug)
+        {
+            var category = await _categoryService.GetBySlugAsync(slug);
+            if (category == null) return NotFound();
+            return Ok(category);
+        }
+
+
         [HttpGet("{id}")]
         public async Task<ActionResult<CategoryDTO>> GetById(int id)
         {

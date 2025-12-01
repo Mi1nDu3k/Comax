@@ -1,6 +1,8 @@
 ﻿using Comax.Business.Interfaces;
+using Comax.Business.Services;
 using Comax.Common.DTOs;
 using Comax.Common.DTOs.User;
+using Comax.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,11 +20,13 @@ namespace Comax.API.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<ActionResult<AuthResultDTO>> Register([FromBody] RegisterDTO dto)
+        public async Task<IActionResult> Register([FromBody] RegisterDTO registerDto)
         {
-            var result = await _userService.RegisterAsync(dto);
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            
+            // Gọi hàm từ UserService
+            var result = await _userService.RegisterAsync(registerDto);
+
             if (!result.Success)
             {
                 return BadRequest(result);
@@ -32,13 +36,18 @@ namespace Comax.API.Controllers
         }
 
         [HttpPost("login")]
-        public async Task<ActionResult<AuthResultDTO>> Login([FromBody] LoginDTO dto)
+        public async Task<IActionResult> Login([FromBody] LoginDTO loginDto)
         {
-            var result = await _userService.LoginAsync(dto);
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            // Gọi hàm từ UserService
+            var result = await _userService.LoginAsync(loginDto);
+
             if (!result.Success)
             {
                 return Unauthorized(result);
             }
+
             return Ok(result);
         }
 
@@ -48,31 +57,31 @@ namespace Comax.API.Controllers
             var users = await _userService.GetAllAsync();
             return Ok(users);
         }
-           
-            [HttpPost("{id}/upgrade-vip")]
-            [Authorize] 
-            public async Task<IActionResult> UpgradeToVip(int id)
-            {
-                var result = await _userService.UpgradeToVipAsync(id);
 
-                if (!result) return NotFound("User not found");
+        [HttpPost("{id}/upgrade-vip")]
+        [Authorize]
+        public async Task<IActionResult> UpgradeToVip(int id)
+        {
+            var result = await _userService.UpgradeToVipAsync(id);
 
-                return Ok(new { message = "Nâng cấp tài khoản VIP thành công! Vui lòng đăng nhập lại để cập nhật quyền." });
-            }
+            if (!result) return NotFound(ErrorMessages.User.UserNotFound);
 
-            [HttpPost("{id}/downgrade-vip")]
-            [Authorize(Roles = "Admin")] 
-            public async Task<IActionResult> DowngradeVip(int id)
-            {
-                var result = await _userService.DowngradeFromVipAsync(id);
+            return Ok(new { message = "VIP account upgraded successfully! Please log in again to update your privileges." });
+        }
 
-                if (!result) return NotFound("User not found");
+        [HttpPost("{id}/downgrade-vip")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DowngradeVip(int id)
+        {
+            var result = await _userService.DowngradeFromVipAsync(id);
 
-                return Ok(new { message = "Đã hạ cấp tài khoản về thành viên thường." });
-            }
+            if (!result) return NotFound("User not found");
+
+            return Ok(new { message = "The account has been downgraded to a regular member." });
+        }
 
         [HttpGet("vip-list")]
-        [Authorize(Roles = "Admin")] 
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<List<UserDTO>>> GetVipUsers()
         {
             var users = await _userService.GetVipUsersAsync();

@@ -83,6 +83,11 @@ namespace Comax.Data.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -90,6 +95,9 @@ namespace Comax.Data.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
 
                     b.ToTable("Categories");
                 });
@@ -121,9 +129,17 @@ namespace Comax.Data.Migrations
                     b.Property<int>("Order")
                         .HasColumnType("int");
 
+                    b.Property<DateTime>("PublishDate")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<Guid>("RowVersion")
                         .IsConcurrencyToken()
                         .HasColumnType("char(36)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -137,7 +153,8 @@ namespace Comax.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ComicId");
+                    b.HasIndex("ComicId", "Slug")
+                        .IsUnique();
 
                     b.ToTable("Chapters");
                 });
@@ -153,6 +170,10 @@ namespace Comax.Data.Migrations
                     b.Property<int>("AuthorId")
                         .HasColumnType("int");
 
+                    b.Property<string>("CoverImage")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");
 
@@ -166,9 +187,21 @@ namespace Comax.Data.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<float>("Rating")
+                        .HasColumnType("float");
+
                     b.Property<Guid>("RowVersion")
                         .IsConcurrencyToken()
                         .HasColumnType("char(36)");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -183,6 +216,9 @@ namespace Comax.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AuthorId");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
 
                     b.ToTable("Comics");
                 });
@@ -351,6 +387,9 @@ namespace Comax.Data.Migrations
                         .HasColumnType("varchar(255)");
 
                     b.Property<bool>("IsDeleted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool>("IsVip")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("PasswordHash")

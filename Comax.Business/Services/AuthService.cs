@@ -27,7 +27,7 @@ namespace Comax.Business.Services
                 return new AuthResultDTO
                 {
                     Success = false,
-                    Message = "Email không tồn tại."
+                    Message = "Email does not exist."
                 };
             }
 
@@ -37,7 +37,7 @@ namespace Comax.Business.Services
                 return new AuthResultDTO
                 {
                     Success = false,
-                    Message = "Mật khẩu không đúng."
+                    Message = "The password is incorrect."
                 };
             }
 
@@ -48,7 +48,7 @@ namespace Comax.Business.Services
             return new AuthResultDTO
             {
                 Success = true,
-                Message = "Đăng nhập thành công!",
+                Message = "Login successful!",
                 Token = token,
                 Username = user.Username,
                 Email = user.Email,

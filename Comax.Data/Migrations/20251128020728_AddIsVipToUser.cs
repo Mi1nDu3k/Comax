@@ -5,7 +5,7 @@
 namespace Comax.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class AddSoftDeleteToUsers : Migration
+    public partial class AddIsVipToUser : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

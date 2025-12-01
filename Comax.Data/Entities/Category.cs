@@ -1,9 +1,14 @@
-﻿namespace Comax.Data.Entities
+﻿using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+
+namespace Comax.Data.Entities
 {
-    // Thêm kế thừa BaseEntity
+    [Index(nameof(Slug), IsUnique = true)]
     public class Category : BaseEntity
     {
-        // Xóa public int Id { get; set; }
+        [Required]
+        [MaxLength(100)]
+        public string Slug { get; set; }
         public string Name { get; set; }
         public ICollection<ComicCategory> ComicCategories { get; set; }
     }

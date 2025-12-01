@@ -15,6 +15,12 @@ namespace Comax.Data.Repositories
                 .OrderBy(ch => ch.Order)
                 .ToListAsync();
         }
+        public async Task<Chapter?> GetByComicIdAndSlugAsync(int comicId, string chapterSlug)
+        {
+            return await _context.Chapters
+                .Include(c => c.Comic) // Load thông tin truyện nếu cần
+                .FirstOrDefaultAsync(c => c.ComicId == comicId && c.Slug == chapterSlug && !c.IsDeleted);
+        }
     }
 }
  

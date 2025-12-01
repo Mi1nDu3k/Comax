@@ -1,4 +1,7 @@
-﻿namespace Comax.Data.Entities
+﻿using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
+
+namespace Comax.Data.Entities
 {
     public class ComicCategory
     {

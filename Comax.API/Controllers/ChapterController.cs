@@ -21,6 +21,13 @@ namespace Comax.API.Controllers
         {
             return Ok(await _chapterService.GetAllAsync());
         }
+        [HttpGet("read/{comicSlug}/{chapterSlug}")]
+        public async Task<ActionResult<ChapterDTO>> GetForReader(string comicSlug, string chapterSlug)
+        {
+            var chapter = await _chapterService.GetChapterBySlugsAsync(comicSlug, chapterSlug);
+            if (chapter == null) return NotFound(new { message = "Chapter not found" });
+            return Ok(chapter);
+        }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<ChapterDTO>> GetById(int id)

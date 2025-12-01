@@ -5,7 +5,7 @@
 namespace Comax.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class AddSoftDeleteFields : Migration
+    public partial class AddChapterPublishDateV4 : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

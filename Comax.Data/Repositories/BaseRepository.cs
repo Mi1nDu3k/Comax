@@ -1,6 +1,7 @@
 ﻿using Comax.Data;
 using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
+using Comax.Shared.Extensions;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -72,6 +73,8 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
             .Skip((pageNumber - 1) * pageSize) // Bỏ qua các item của trang trước
             .Take(pageSize)                   // Chỉ lấy số item của trang hiện tại
             .ToListAsync();
+
+        //var items = await query.ToPaginationAsync(pageNumber, pageSize).ToListAsync();
 
         return (items, totalCount);
     }

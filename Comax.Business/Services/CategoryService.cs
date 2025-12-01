@@ -5,6 +5,7 @@ using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
 using Comax.Business.Interfaces;
 using Comax.Common.DTOs.Pagination;
+using Comax.Common.Helpers;
 
 namespace Comax.Business.Services
 {
@@ -20,6 +21,33 @@ namespace Comax.Business.Services
             _mapper = mapper;
         }
 
-        // TẤT CẢ các phương thức CRUD được KẾ THỪA. Xóa implementation bị trùng lặp.
+        public async Task<CategoryDTO?> GetBySlugAsync(string slug)
+        {
+            var category = await _repo.GetBySlugAsync(slug);
+            if (category == null) return null;
+            return _mapper.Map<CategoryDTO>(category);
+        }
+
+        // Override Create: Tự động tạo slug
+        public override async Task<CategoryDTO> CreateAsync(CategoryCreateDTO dto)
+        {
+            string slug = SlugHelper.GenerateSlug(dto.Name);
+
+            //  Kiểm tra trùng lặp
+            string originalSlug = slug;
+            int count = 0;
+            while ((await _repo.GetBySlugAsync(slug)) != null)
+            {
+                count++;
+                slug = $"{originalSlug}-{count}";
+            }
+
+            // Map và Lưu
+            var entity = _mapper.Map<Category>(dto);
+            entity.Slug = slug; 
+
+            await _repo.AddAsync(entity);
+            return _mapper.Map<CategoryDTO>(entity);
+        }
     }
 }

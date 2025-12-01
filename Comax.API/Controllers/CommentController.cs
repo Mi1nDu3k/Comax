@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 [Route("api/[controller]")]
 public class CommentController : ControllerBase
 {
-    // Sửa lỗi: Inject ICommentService, không phải IRatingService
+  
     private readonly ICommentService _service;
     public CommentController(ICommentService service) { _service = service; }
 

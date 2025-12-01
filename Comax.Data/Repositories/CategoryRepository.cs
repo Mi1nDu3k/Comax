@@ -12,5 +12,10 @@ namespace Comax.Data.Repositories
         {
             return await _dbSet.FirstOrDefaultAsync(c => c.Name == name);
         }
+        public async Task<Category?> GetBySlugAsync(string slug)
+        {
+            return await _context.Categories
+                .FirstOrDefaultAsync(c => c.Slug == slug && !c.IsDeleted);
+        }
     }
 }

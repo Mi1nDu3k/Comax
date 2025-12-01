@@ -14,9 +14,22 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using FluentValidation.AspNetCore;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+//Thêm dịch vụ CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowNextJs", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000") // Địa chỉ Next.js
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials(); // Nếu dùng Cookie/Auth
+    });
+});
 
 // 1. Add DbContext
 builder.Services.AddDbContext<ComaxDbContext>(options =>
@@ -54,10 +67,9 @@ builder.Services.AddScoped<IReportService, ReportService>();
 builder.Services.AddControllers();
 
 // quét tất cả Validator trong toàn bộ solution
-builder.Services.AddValidatorsFromAssemblyContaining<Program>();
-builder.Services.AddValidatorsFromAssembly(typeof(UserCreateDTOValidator).Assembly);
-
-// 6. Add Swagger
+builder.Services.AddFluentValidationAutoValidation()
+                .AddFluentValidationClientsideAdapters();
+builder.Services.AddValidatorsFromAssemblyContaining<Comax.Common.DTOs.BaseDto>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -129,6 +141,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseCors("AllowNextJs");
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -140,8 +153,9 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ComaxDbContext>();
 
-    dbContext.Database.Migrate(); // tạo bảng
-    DataSeeder.Seed(dbContext);   // seed dữ liệu
+    dbContext.Database.Migrate(); // Tự động chạy migration nếu chưa có
+
+    DbSeeder.Seed(dbContext);
 }
 
 app.Run();

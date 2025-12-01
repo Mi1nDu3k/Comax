@@ -7,7 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-// ... imports
+
 namespace Comax.Business.Interfaces
 {
     public interface IRatingService

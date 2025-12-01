@@ -38,7 +38,7 @@ namespace Comax.Business.Services
         }
 
         // Dùng lại các phương thức đã có:
-        public async Task<TDto> CreateAsync(TCreateDto dto)
+        public virtual async Task<TDto> CreateAsync(TCreateDto dto)
         {
             var entity = _mapper.Map<TEntity>(dto);
             await _repo.AddAsync(entity);
