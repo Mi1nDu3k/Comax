@@ -10,13 +10,7 @@ namespace Comax.Data.Repositories
 
         public async Task<Comic?> GetBySlugAsync(string slug)
         {
-            // tao truyen
-            var comic = new Comic();
-
-            // tao chapter
-            var chapter = new Chapter();
-            chapter.Comic= comic;
-            _context.SaveChanges();
+          
 
             return await _context.Comics
                 .Include(c => c.Author) 

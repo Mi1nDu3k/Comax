@@ -1,0 +1,28 @@
+﻿version: '3.8'
+services:
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000" # API port
+      - "9001:9001" # Console port
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - ./minio_data:/data # Lưu dữ liệu tại thư mục minio_data cùng cấp
+    command: server /data --console-address ":9001"
+    restart: always
+
+# (Tùy chọn) Thêm MinIO Client (mc) nếu bạn cần cấu hình bucket tự động
+#  createbuckets:
+#    image: minio/mc
+#    depends_on:
+#      - minio
+#    entrypoint: >
+#      /bin/sh -c "
+#      /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin;
+#      /usr/bin/mc mb myminio/my-bucket-name;
+#      /usr/bin/mc anonymous set public myminio/my-bucket-name;
+#      exit 0;
+#      "

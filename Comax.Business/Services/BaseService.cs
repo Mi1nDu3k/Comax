@@ -59,13 +59,13 @@ namespace Comax.Business.Services
             return _mapper.Map<IEnumerable<TDto>>(entities);
         }
 
-        public async Task<TDto?> GetByIdAsync(int id)
+        public virtual async Task<TDto?> GetByIdAsync(int id)
         {
             var entity = await _repo.GetByIdAsync(id);
             return _mapper.Map<TDto>(entity);
         }
 
-        public async Task<TDto> UpdateAsync(int id, TUpdateDto dto)
+        public virtual async Task<TDto> UpdateAsync(int id, TUpdateDto dto)
         {
             var entity = await _repo.GetByIdAsync(id);
             if (entity == null) throw new Exception("Entity not found");

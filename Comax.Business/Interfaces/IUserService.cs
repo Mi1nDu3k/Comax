@@ -10,5 +10,7 @@ namespace Comax.Business.Interfaces
         Task<List<UserDTO>> GetVipUsersAsync();
         Task<bool> UpgradeToVipAsync(int userId);
         Task<bool>DowngradeFromVipAsync(int userId);
+        Task<bool> BanUserAsync (int userId);
+        Task<bool> UnbanUserAsync (int userId);
     }
 }

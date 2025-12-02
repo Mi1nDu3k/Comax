@@ -11,7 +11,7 @@ namespace Comax.Common.DTOs.Validators.Comic
                 .NotEmpty()
                 .MinimumLength(3);
 
-            RuleFor(x => x.Descriptiom)
+            RuleFor(x => x.Description)
                 .MaximumLength(2000);
         }
     }

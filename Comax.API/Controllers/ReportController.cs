@@ -6,8 +6,6 @@ namespace Comax.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    // Chỉ Admin mới xem được báo cáo
-    [Authorize(Roles = "Admin")]
     public class ReportController : ControllerBase
     {
         private readonly IReportService _reportService;
@@ -17,19 +15,21 @@ namespace Comax.API.Controllers
             _reportService = reportService;
         }
 
+        [HttpGet("top-comics")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetTopComics([FromQuery] string type = "view", [FromQuery] int top = 5)
+        {
+            var result = await _reportService.GetTopComicsAsync(type , top);
+            return Ok(result);
+        }
+
         [HttpGet("dashboard")]
+    [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetDashboardStats()
         {
             var stats = await _reportService.GetDashboardStatsAsync();
             return Ok(stats);
         }
 
-        [HttpGet("top-comics")]
-        public async Task<IActionResult> GetTopComics([FromQuery] string type = "view", [FromQuery] int top = 5)
-        {
-            // type: "view" hoặc "rating"
-            var result = await _reportService.GetTopComicsAsync(type, top);
-            return Ok(result);
-        }
     }
 }

@@ -1,11 +1,11 @@
 ﻿using AutoMapper;
 using Comax.Business.Interfaces;
-using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs;
 using Comax.Common.DTOs.User;
 using Comax.Common.Helpers;
 using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
+using Comax.Shared; // Import để dùng ErrorMessages
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -31,16 +31,20 @@ namespace Comax.Business.Services
             _jwtHelper = jwtHelper;
         }
 
+        #region Authentication
+
         public async Task<AuthResultDTO> RegisterAsync(RegisterDTO dto)
-        {
-            // 1. Kiểm tra Email trùng
+        {   ///<summary>
+            /// Kiểm tra Email trùng
+            /// </summary>
             var existingUser = await _userRepo.GetByEmailAsync(dto.Email);
             if (existingUser != null)
             {
-                return new AuthResultDTO { Success = false, Message = "Email đã tồn tại." };
+                return new AuthResultDTO { Success = false, Message = ErrorMessages.Auth.EmailExists };
             }
-
-            // 2. Tìm Role
+            ///<summary>
+            /// Tìm Role (Mặc định là User nếu không truyền hoặc truyền 0)
+            ///</summary>
             int roleIdToUse = dto.RoleId;
             string roleName = "User";
 
@@ -48,7 +52,7 @@ namespace Comax.Business.Services
             {
                 var defaultRole = await _roleRepo.GetByNameAsync("User");
                 if (defaultRole == null)
-                    return new AuthResultDTO { Success = false, Message = "Lỗi hệ thống: Không tìm thấy Role mặc định." };
+                    return new AuthResultDTO { Success = false, Message = ErrorMessages.System.DefaultRoleNotFound };
 
                 roleIdToUse = defaultRole.Id;
             }
@@ -57,8 +61,9 @@ namespace Comax.Business.Services
                 var r = await _roleRepo.GetByIdAsync(dto.RoleId);
                 if (r != null) roleName = r.Name;
             }
-
-            // 3. Tạo Entity
+            ///<summary>
+            /// 3. Tạo Entity User
+            /// </summary>
             var newUser = new User
             {
                 Username = dto.Username,
@@ -66,39 +71,54 @@ namespace Comax.Business.Services
                 PasswordHash = PasswordHelper.HashPassword(dto.Password),
                 RoleId = roleIdToUse,
                 IsDeleted = false,
-                CreatedAt = DateTime.UtcNow,
-                IsVip = false
+                IsBanned = false, // Mặc định không bị ban
+                IsVip = false,    // Mặc định không phải VIP
+                CreatedAt = DateTime.UtcNow
             };
 
             await _userRepo.AddAsync(newUser);
-            // await _userRepo.SaveChangesAsync(); // Bỏ comment nếu BaseRepo chưa save
-
-            // 4. Tạo Token (SỬA LỖI TẠI ĐÂY: Truyền Id.ToString() thay vì object User)
+            ///<summary>
+            /// Tạo Token & Trả về kết quả
+            /// </summary>
             var token = _jwtHelper.GenerateToken(newUser.Id.ToString(), roleName);
 
             return new AuthResultDTO
             {
                 Success = true,
-                Message = "Đăng ký thành công!",
+                Message = ErrorMessages.Auth.RegisterSuccess,
                 Token = token,
                 Username = newUser.Username,
                 Email = newUser.Email,
-                Role = roleName
+                Role = roleName,
+                CreatedAt = newUser.CreatedAt,
+                RowVersion = newUser.RowVersion
             };
         }
 
         public async Task<AuthResultDTO> LoginAsync(LoginDTO dto)
         {
+            // 1. Lấy thông tin User
             var user = await _userRepo.GetByEmailAsync(dto.Email);
 
+            // 2. Kiểm tra tài khoản và mật khẩu
             if (user == null || !PasswordHelper.VerifyPassword(dto.Password, user.PasswordHash))
             {
-                return new AuthResultDTO { Success = false, Message = "Tài khoản hoặc mật khẩu không đúng." };
+                return new AuthResultDTO { Success = false, Message = ErrorMessages.Auth.InvalidCredentials };
             }
 
+            // 3. Kiểm tra xem tài khoản có bị Soft Delete không
             if (user.IsDeleted)
-                return new AuthResultDTO { Success = false, Message = "Tài khoản đã bị khóa." };
+            {
+                return new AuthResultDTO { Success = false, Message = ErrorMessages.Auth.AccountLocked };
+            }
 
+            // 4. Kiểm tra xem tài khoản có bị BAN không (Logic mới)
+            if (user.IsBanned)
+            {
+                return new AuthResultDTO { Success = false, Message = ErrorMessages.Auth.AccountLocked };
+            }
+
+            // 5. Lấy tên Role
             string roleName = user.Role?.Name;
             if (string.IsNullOrEmpty(roleName))
             {
@@ -106,13 +126,13 @@ namespace Comax.Business.Services
                 roleName = role?.Name ?? "User";
             }
 
-            // (SỬA LỖI TẠI ĐÂY: Truyền Id.ToString())
+            // 6. Tạo Token
             var token = _jwtHelper.GenerateToken(user.Id.ToString(), roleName);
 
             return new AuthResultDTO
             {
                 Success = true,
-                Message = "Đăng nhập thành công!",
+                Message = ErrorMessages.Auth.LoginSuccess,
                 Token = token,
                 Username = user.Username,
                 Email = user.Email,
@@ -120,15 +140,22 @@ namespace Comax.Business.Services
             };
         }
 
-        // ... Các hàm UpgradeToVipAsync, DowngradeFromVipAsync, GetVipUsersAsync giữ nguyên ...
+        #endregion
+
+        #region VIP Features
+
         public async Task<bool> UpgradeToVipAsync(int userId)
         {
             var user = await _userRepo.GetByIdAsync(userId);
             if (user == null) return false;
+
             var vipRole = await _roleRepo.GetByNameAsync("VipUser");
-            if (vipRole == null) return false;
+            if (vipRole == null) throw new Exception(ErrorMessages.System.RoleNotFound);
+
+            // Cập nhật lên VIP
             user.RoleId = vipRole.Id;
             user.IsVip = true;
+
             await _userRepo.UpdateAsync(user);
             return true;
         }
@@ -137,10 +164,14 @@ namespace Comax.Business.Services
         {
             var user = await _userRepo.GetByIdAsync(userId);
             if (user == null) return false;
+
             var userRole = await _roleRepo.GetByNameAsync("User");
-            if (userRole == null) return false;
+            if (userRole == null) throw new Exception(ErrorMessages.System.RoleNotFound);
+
+            // Cập nhật về thường
             user.RoleId = userRole.Id;
             user.IsVip = false;
+
             await _userRepo.UpdateAsync(user);
             return true;
         }
@@ -148,9 +179,42 @@ namespace Comax.Business.Services
         public async Task<List<UserDTO>> GetVipUsersAsync()
         {
             var vipRole = await _roleRepo.GetByNameAsync("VipUser");
-            if (vipRole == null) return new List<UserDTO>();
+            if (vipRole == null) return new List<UserDTO>(); // Trả về list rỗng nếu chưa có role VIP
+
+            // Giả sử UserRepository có hàm lấy theo RoleId (đã thêm ở các bước trước)
             var users = await _userRepo.GetByRoleIdAsync(vipRole.Id);
+
             return _mapper.Map<List<UserDTO>>(users);
         }
+
+        #endregion
+
+        #region Moderation (Ban/Unban)
+
+        public async Task<bool> BanUserAsync(int userId)
+        {
+            var user = await _userRepo.GetByIdAsync(userId);
+            if (user == null) return false;
+
+            // Set cờ IsBanned
+            user.IsBanned = true;
+
+            await _userRepo.UpdateAsync(user);
+            return true;
+        }
+
+        public async Task<bool> UnbanUserAsync(int userId)
+        {
+            var user = await _userRepo.GetByIdAsync(userId);
+            if (user == null) return false;
+
+            // Bỏ cờ IsBanned
+            user.IsBanned = false;
+
+            await _userRepo.UpdateAsync(user);
+            return true;
+        }
+
+        #endregion
     }
 }

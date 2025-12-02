@@ -1,4 +1,5 @@
 ﻿using Comax.Common.DTOs;
+using Comax.Shared;
 using FluentValidation;
 
 namespace Comax.Common.DTOs.Validators.Auth
@@ -8,22 +9,21 @@ namespace Comax.Common.DTOs.Validators.Auth
         public RegisterDTOValidator()
         {
             RuleFor(x => x.Username)
-                .NotEmpty().WithMessage("Tên đăng nhập không được để trống")
-                .MinimumLength(3).WithMessage("Tên đăng nhập phải dài hơn 3 ký tự");
+                .NotEmpty().WithMessage(ErrorMessages.Validation.UsernameRequired)
+                .MinimumLength(3).WithMessage(string.Format(ErrorMessages.Validation.UsernameMinLength, 3));
 
             RuleFor(x => x.Email)
-                .NotEmpty().WithMessage("Email không được để trống")
-                .EmailAddress().WithMessage("Email không hợp lệ");
+                .NotEmpty().WithMessage(ErrorMessages.Validation.EmailRequired)
+                .EmailAddress().WithMessage(ErrorMessages.Validation.EmailInvalid);
 
-            
             RuleFor(x => x.Password)
-                .NotEmpty().WithMessage("Mật khẩu không được để trống.")
-                .MinimumLength(8).WithMessage("Mật khẩu phải có ít nhất 8 ký tự.")
-                .Matches(@"[A-Z]").WithMessage("Mật khẩu phải chứa ít nhất 1 ký tự viết hoa.")
-                .Matches(@"[a-z]").WithMessage("Mật khẩu phải chứa ít nhất 1 ký tự viết thường.")
-                .Matches(@"[0-9]").WithMessage("Mật khẩu phải chứa ít nhất 1 chữ số.")
+                .NotEmpty().WithMessage(ErrorMessages.Validation.PasswordRequired)
+                .MinimumLength(8).WithMessage(string.Format(ErrorMessages.Validation.PasswordMinLength, 8))
+                .Matches(@"[A-Z]").WithMessage(ErrorMessages.Validation.PasswordUppercase)
+                .Matches(@"[a-z]").WithMessage(ErrorMessages.Validation.PasswordLowercase)
+                .Matches(@"[0-9]").WithMessage(ErrorMessages.Validation.PasswordDigit)
                 .Matches(@"[\!\?\*\@\#\$\%\^\&\(\)\.\,\;\:\<\>\{\}\[\]\-_=\+]")
-                .WithMessage("Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (VD: ! @ # $ % ...)");
+                .WithMessage(ErrorMessages.Validation.PasswordSpecialChar);
         }
     }
 }

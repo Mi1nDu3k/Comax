@@ -34,8 +34,7 @@ namespace Comax.Data.Repositories
                     Id = c.Id,
                     Title = c.Title,
                     ViewCount = c.ViewCount,
- 
-                    AverageRating = _context.Ratings.Where(r => r.ComicId == c.Id).Average(r => (double?)r.Score) ?? 0,
+                    AverageRating = c.Rating, 
                     RatingCount = _context.Ratings.Count(r => r.ComicId == c.Id)
                 })
                 .ToListAsync();
@@ -43,37 +42,50 @@ namespace Comax.Data.Repositories
 
         public async Task<List<TopComicDTO>> GetTopRatedComicsAsync(int top)
         {
-          
-
-            var topRatedData = await _context.Ratings
+            var topStats = await _context.Ratings
                 .GroupBy(r => r.ComicId)
                 .Select(g => new
                 {
                     ComicId = g.Key,
-                    AvgScore = g.Average(r => r.Score),
-                    Count = g.Count()
+                    AverageRating = g.Average(r => r.Score),
+                    RatingCount = g.Count()
                 })
-                .OrderByDescending(x => x.AvgScore)
-                .Take(top)
+                .OrderByDescending(x => x.AverageRating) 
+                .Take(top) 
                 .ToListAsync();
 
-            //  Join lại với bảng Comic để lấy Title
-            var result = new List<TopComicDTO>();
-            foreach (var item in topRatedData)
-            {
-                var comic = await _context.Comics.FindAsync(item.ComicId);
-                if (comic != null)
+            if (!topStats.Any()) return new List<TopComicDTO>();
+
+           
+            var comicIds = topStats.Select(s => s.ComicId).ToList();
+
+            
+            var comics = await _context.Comics
+                .Where(c => comicIds.Contains(c.Id))
+                .Select(c => new
                 {
-                    result.Add(new TopComicDTO
-                    {
-                        Id = comic.Id,
-                        Title = comic.Title,
-                        ViewCount = comic.ViewCount,
-                        AverageRating = item.AvgScore,
-                        RatingCount = item.Count
-                    });
-                }
-            }
+                    c.Id,
+                    c.Title,
+                    c.ViewCount
+                  
+                })
+                .ToListAsync();
+
+           
+            var result = topStats.Join(comics,
+                stat => stat.ComicId,
+                comic => comic.Id,
+                (stat, comic) => new TopComicDTO
+                {
+                    Id = comic.Id,
+                    Title = comic.Title,
+                    ViewCount = comic.ViewCount,
+                    AverageRating = Math.Round(stat.AverageRating, 1), 
+                    RatingCount = stat.RatingCount
+                })
+                .OrderByDescending(x => x.AverageRating) 
+                .ToList();
+
             return result;
         }
     }

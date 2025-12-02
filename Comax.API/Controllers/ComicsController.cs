@@ -1,6 +1,7 @@
 ﻿using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs.Comic;
 using Comax.Common.DTOs.Pagination;
+using Comax.Shared; // <-- Import Shared
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,10 +18,11 @@ namespace Comax.API.Controllers
             _comicService = comicService;
         }
 
-
-        // PUBLIC APIs (Dành cho người đọc - Frontend Next.js)
-
-        // GET: api/Comic?PageNumber=1&PageSize=10
+        /// <summary>
+        /// GET: api/Comic
+        /// </summary>
+        /// <param name="paginationParam"></param>
+        /// <returns></returns>
         [HttpGet]
         public async Task<ActionResult<PagedList<ComicDTO>>> GetAll([FromQuery] PaginationParams paginationParam)
         {
@@ -29,19 +31,22 @@ namespace Comax.API.Controllers
             return Ok(pagedList);
         }
 
-        // GET: api/Comic/slug/solo-leveling (QUAN TRỌNG CHO SEO)
+        /// <summary>
+        /// GET: api/Comic/slug/{slug}
+        /// </summary>
+        /// <param name="slug"></param>
+        /// <returns></returns>
         [HttpGet("slug/{slug}")]
         public async Task<ActionResult<ComicDTO>> GetBySlug(string slug)
         {
-            if (string.IsNullOrEmpty(slug)) return BadRequest("Slug không được để trống");
+            if (string.IsNullOrEmpty(slug))
+                return BadRequest(ErrorMessages.Comic.SlugRequired); 
 
-            // Gọi service tìm theo slug
             var comic = await _comicService.GetBySlugAsync(slug);
 
             if (comic == null)
-                return NotFound(new { message = $"Không tìm thấy truyện với slug: {slug}" });
+                return NotFound(new { message = string.Format(ErrorMessages.Comic.NotFoundBySlug, slug) }); 
 
-            // Trả về ETag để hỗ trợ cache hoặc update sau này
             if (comic.RowVersion != Guid.Empty)
             {
                 Response.Headers.Append("ETag", "\"" + comic.RowVersion.ToString() + "\"");
@@ -49,8 +54,9 @@ namespace Comax.API.Controllers
 
             return Ok(comic);
         }
-
-        // GET: api/Comic/search?title=One
+        /// <summary>
+        /// GET: api/Comic/search
+        /// </summary>
         [HttpGet("search")]
         public async Task<ActionResult<IEnumerable<ComicDTO>>> Search([FromQuery] string title)
         {
@@ -58,26 +64,26 @@ namespace Comax.API.Controllers
             return Ok(results);
         }
 
-        // POST: api/Comic/10/view (Tăng lượt xem)
+        /// <summary>
+        /// POST: api/Comic/{id}/view
+        /// </summary>
+        /// <param name="id"></param>
+        /// <returns></returns>
         [HttpPost("{id}/view")]
         public async Task<IActionResult> IncreaseView(int id)
         {
             await _comicService.IncreaseViewCountAsync(id);
-            return Ok(new { message = "View count increased" });
+            return Ok(new { message = ErrorMessages.Comic.ViewCountIncreased }); 
         }
 
- 
-        // 2. ADMIN APIs (Dành cho trang quản trị - Cần Token)
+        // --- ADMIN APIs ---
 
-
-        // GET: api/Comic/10 (Lấy theo ID để Admin sửa)
         [HttpGet("{id}")]
         public async Task<ActionResult<ComicDTO>> GetById(int id)
         {
             var comic = await _comicService.GetByIdAsync(id);
             if (comic == null) return NotFound();
 
-            // Gắn ETag để xử lý concurrency khi update
             if (comic.RowVersion != Guid.Empty)
             {
                 Response.Headers.Append("ETag", "\"" + comic.RowVersion.ToString() + "\"");
@@ -85,23 +91,23 @@ namespace Comax.API.Controllers
             return Ok(comic);
         }
 
+        // ...
         [Authorize(Roles = "Admin")]
         [HttpPost]
-        public async Task<ActionResult<ComicDTO>> Create([FromBody] ComicCreateDTO dto)
+        // Đổi [FromBody] -> [FromForm]
+        public async Task<ActionResult<ComicDTO>> Create([FromForm] ComicCreateDTO dto)
         {
-            // Service đã lo việc tạo Slug tự động
             var created = await _comicService.CreateAsync(dto);
-
-            // Trả về đường dẫn lấy chi tiết theo ID
             return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
         }
 
         [Authorize(Roles = "Admin")]
         [HttpPut("{id}")]
-        public async Task<ActionResult<ComicDTO>> Update(int id, [FromBody] ComicUpdateDTO dto)
+        public async Task<ActionResult<ComicDTO>> Update(int id, [FromForm] ComicUpdateDTO dto)
         {
-            // Kiểm tra Optimistic Concurrency (ETag)
-            // Header If-Match giúp đảm bảo admin không ghi đè dữ liệu cũ nếu có người khác vừa sửa
+            /// <summary>
+            /// kiểm tra concurrency token từ header If-Match
+            /// </summary>
             if (Request.Headers.TryGetValue("If-Match", out var ifMatch))
             {
                 var clientVersionString = ifMatch.ToString().Replace("\"", "");
@@ -109,10 +115,10 @@ namespace Comax.API.Controllers
 
                 if (currentEntity == null) return NotFound();
 
-                // Convert RowVersion từ byte[] sang Base64 string để so sánh
                 if (currentEntity.RowVersion.ToString() != clientVersionString)
                 {
-                    return StatusCode(412, "Precondition Failed: Data has been modified by another user.");
+                    
+                    return StatusCode(412, ErrorMessages.System.ConcurrencyConflict);
                 }
             }
 
@@ -139,13 +145,14 @@ namespace Comax.API.Controllers
             if (!result) return NotFound();
             return NoContent();
         }
-
-        // API Test quyền VIP (Giữ lại nếu cần)
+        /// <summary>
+        /// API Test quyền VIP
+        /// </summary>
         [Authorize(Roles = "Admin, VipUser")]
         [HttpGet("premium-content")]
         public IActionResult GetPremiumContent()
         {
-            return Ok(new { message = "Đây là nội dung độc quyền cho VIP!" });
+            return Ok(new { message = ErrorMessages.Auth.PremiumContent }); 
         }
     }
 }
