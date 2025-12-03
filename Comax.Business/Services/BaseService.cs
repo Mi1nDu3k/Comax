@@ -45,7 +45,7 @@ namespace Comax.Business.Services
             return _mapper.Map<TDto>(entity);
         }
 
-        public async Task<bool> DeleteAsync(int id, bool hardDelete = false)
+        public virtual async Task<bool> DeleteAsync(int id, bool hardDelete = false)
         {
             var entity = await _repo.GetByIdAsync(id);
             if (entity == null) return false;
@@ -53,7 +53,7 @@ namespace Comax.Business.Services
             return await _repo.DeleteAsync(id, hardDelete);
         }
 
-        public async Task<IEnumerable<TDto>> GetAllAsync()
+        public virtual async Task<IEnumerable<TDto>> GetAllAsync()
         {
             var entities = await _repo.GetAllAsync();
             return _mapper.Map<IEnumerable<TDto>>(entities);

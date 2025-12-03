@@ -18,7 +18,7 @@ namespace Comax.Data.Repositories
         public async Task<Chapter?> GetByComicIdAndSlugAsync(int comicId, string chapterSlug)
         {
             return await _context.Chapters
-                .Include(c => c.Comic) // Load thông tin truyện nếu cần
+                .Include(c => c.Comic) 
                 .FirstOrDefaultAsync(c => c.ComicId == comicId && c.Slug == chapterSlug && !c.IsDeleted);
         }
     }
