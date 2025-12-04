@@ -34,7 +34,6 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
             baseEntity.RowVersion = Guid.NewGuid();
         }
         await _context.Set<T>().AddAsync(entity);
-        await _context.SaveChangesAsync();
         return entity; // phải trả entity
     }
 
@@ -50,7 +49,7 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
 
         try
         {
-            await _context.SaveChangesAsync();
+            return entity;
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -86,13 +85,11 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
 
         if (hardDelete)
         {
-            // Xóa vĩnh viễn
             _dbSet.Remove(entity);
         }
         else
         {
-            // Soft Delete: Chỉ thực hiện nếu entity có kế thừa BaseEntity
-            if (entity is BaseEntity baseEntity)
+            if (entity is Comax.Data.Entities.BaseEntity baseEntity)
             {
                 baseEntity.IsDeleted = true;
                 baseEntity.DeletedAt = DateTime.UtcNow;
@@ -100,12 +97,9 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
             }
             else
             {
-                // Nếu entity không hỗ trợ soft delete (không có IsDeleted), buộc phải xóa cứng hoặc báo lỗi
                 _dbSet.Remove(entity);
             }
         }
-
-        await _context.SaveChangesAsync();
         return true;
     }
 }

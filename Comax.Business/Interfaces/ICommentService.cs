@@ -8,12 +8,8 @@ using System.Threading.Tasks;
 
 namespace Comax.Business.Interfaces
 {
-    public interface ICommentService
+    public interface ICommentService: IBaseService<CommentDTO, CommentCreateDTO, CommentUpdateDTO>
     {
-        Task<Comment> CreateAsync(CommentCreateDTO dto);
-        Task<Comment?> UpdateAsync(int id, CommentUpdateDTO dto);
-        // Cập nhật tham số
-        Task<bool> DeleteAsync(int id, bool hardDelete = false);
-        Task<List<Comment>> GetByComicAsync(int comicId);
+        Task<List<CommentDTO>> GetByComicAsync(int comicId);
     }
 }

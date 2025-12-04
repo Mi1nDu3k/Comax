@@ -14,14 +14,15 @@ namespace Comax.Business.Services
         where TEntity : Comax.Data.Entities.BaseEntity
     {
         protected readonly IBaseRepository<TEntity> _repo;
+        protected readonly IUnitOfWork _unitOfWork; 
         protected readonly IMapper _mapper;
 
-        public BaseService(IBaseRepository<TEntity> repo, IMapper mapper)
+        public BaseService(IBaseRepository<TEntity> repo, IUnitOfWork unitOfWork, IMapper mapper)
         {
             _repo = repo;
+            _unitOfWork = unitOfWork; 
             _mapper = mapper;
         }
-
         // THÊM: Implementation phân trang
         public async Task<PagedList<TDto>> GetAllPagedAsync(PaginationParams @params)
         {
@@ -37,20 +38,19 @@ namespace Comax.Business.Services
             );
         }
 
-        // Dùng lại các phương thức đã có:
+
         public virtual async Task<TDto> CreateAsync(TCreateDto dto)
         {
             var entity = _mapper.Map<TEntity>(dto);
-            await _repo.AddAsync(entity);
+            await _repo.AddAsync(entity); 
+            await _unitOfWork.CommitAsync(); 
             return _mapper.Map<TDto>(entity);
         }
-
         public virtual async Task<bool> DeleteAsync(int id, bool hardDelete = false)
         {
-            var entity = await _repo.GetByIdAsync(id);
-            if (entity == null) return false;
-
-            return await _repo.DeleteAsync(id, hardDelete);
+            var result = await _repo.DeleteAsync(id, hardDelete);
+            if (result) await _unitOfWork.CommitAsync(); // Base tự động Commit
+            return result;
         }
 
         public virtual async Task<IEnumerable<TDto>> GetAllAsync()
@@ -71,10 +71,9 @@ namespace Comax.Business.Services
             if (entity == null) throw new Exception("Entity not found");
 
             _mapper.Map(dto, entity);
-            entity.UpdatedAt = DateTime.UtcNow;
-
             await _repo.UpdateAsync(entity);
+            await _unitOfWork.CommitAsync(); 
             return _mapper.Map<TDto>(entity);
         }
     }
-}
+    }

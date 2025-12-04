@@ -9,5 +9,8 @@
 
         public int ComicId { get; set; }
         public Comic? Comic { get; set; }
+        public int? ParentId { get; set; } 
+        public Comment? ParentComment { get; set; }
+        public ICollection<Comment> Replies { get; set; } 
     }
 }

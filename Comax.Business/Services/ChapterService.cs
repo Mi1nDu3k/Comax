@@ -13,24 +13,26 @@ namespace Comax.Business.Services
 {
     public class ChapterService : BaseService<Chapter, ChapterDTO, ChapterCreateDTO, ChapterUpdateDTO>, IChapterService
     {
-        private readonly IChapterRepository _chapterRepo; // Đổi tên để tránh nhầm với _repo của BaseService
+        private readonly IChapterRepository _chapterRepo;
         private readonly IComicRepository _comicRepo;
         private readonly IMemoryCache _cache;
+        private readonly INotificationService _noticationService;
 
         public ChapterService(
             IChapterRepository repo,
             IComicRepository comicRepo,
             IMapper mapper,
-            IMemoryCache cache) : base(repo, mapper)
+            IMemoryCache cache,
+            IUnitOfWork unitOfWork,
+            INotificationService notiService)
+            : base(repo, unitOfWork, mapper)
         {
             _chapterRepo = repo;
             _comicRepo = comicRepo;
             _cache = cache;
+            _noticationService=notiService;
         }
 
-        /// <summary>
-        /// Lấy chi tiết Chapter theo ID (Cache)
-        /// </summary>
         public override async Task<ChapterDTO?> GetByIdAsync(int id)
         {
             string key = $"chapter_id_{id}";
@@ -41,78 +43,76 @@ namespace Comax.Business.Services
             });
         }
 
-        /// <summary>
-        /// Lấy Chapter theo Slug truyện và Slug chương (Dùng cho trang đọc)
-        /// </summary>
-        
         public async Task<ChapterDTO?> GetChapterBySlugsAsync(string comicSlug, string chapterSlug)
         {
             string key = $"chapter_read_{comicSlug}_{chapterSlug}";
-
             return await _cache.GetOrCreateAsync(key, async entry =>
             {
                 entry.SlidingExpiration = TimeSpan.FromMinutes(20);
-
-                /// 1. Tìm Comic trước để lấy ID
                 var comic = await _comicRepo.GetBySlugAsync(comicSlug);
                 if (comic == null) return null;
-
-                /// 2. Tìm Chapter dựa trên ComicId và ChapterSlug
                 var chapter = await _chapterRepo.GetByComicIdAndSlugAsync(comic.Id, chapterSlug);
                 if (chapter == null) return null;
-
                 return _mapper.Map<ChapterDTO>(chapter);
             });
         }
 
-        /// <summary>
-        /// --- 2. WRITE (XÓA CACHE 
-        /// </summary>
-        /// <param name="dto"></param>
-        /// <returns></returns>
-        /// <exception cref="Exception"></exception>& LOGIC SLUG) ---
+        // --- WRITE (Dùng UnitOfWork) ---
 
         public override async Task<ChapterDTO> CreateAsync(ChapterCreateDTO dto)
         {
-           
             string slug = SlugHelper.GenerateSlug(dto.Title);
 
-           
             var existingChapter = await _chapterRepo.GetByComicIdAndSlugAsync(dto.ComicId, slug);
             if (existingChapter != null)
             {
-                
                 throw new Exception($"Slug '{slug}' đã tồn tại trong truyện này.");
             }
 
-            
             var entity = _mapper.Map<Chapter>(dto);
             entity.Slug = slug;
-            entity.PublishDate = DateTime.UtcNow; 
+            entity.PublishDate = DateTime.UtcNow;
 
             await _chapterRepo.AddAsync(entity);
+            await _unitOfWork.CommitAsync();
+            var userIds = await _unitOfWork.Favorites.GetUserIdsByComicIdAsync(dto.ComicId);
+            var comic = await _comicRepo.GetByIdAsync(dto.ComicId); // Lấy tên truyện
 
-         
-             _cache.Remove($"chapters_of_comic_{dto.ComicId}");
-
+            if (userIds.Any() && comic != null)
+            {
+                var notifications = new List<Notification>();
+                foreach (var uid in userIds)
+                {
+                    notifications.Add(new Notification
+                    {
+                        UserId = uid,
+                        Message = $"Truyện '{comic.Title}' vừa có chương mới: {entity.Title}",
+                        Url = $"/comic/{comic.Slug}", // Link đến truyện
+                        IsRead = false,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+                foreach (var noti in notifications)
+                {
+                    await _unitOfWork.Notifications.AddAsync(noti);
+                }
+                await _unitOfWork.CommitAsync();
+            }
             return _mapper.Map<ChapterDTO>(entity);
         }
 
         public override async Task<ChapterDTO> UpdateAsync(int id, ChapterUpdateDTO dto)
         {
-            var result = await base.UpdateAsync(id, dto);
+            var result = await base.UpdateAsync(id, dto); // Base đã gọi CommitAsync
 
-          
             _cache.Remove($"chapter_id_{id}");
-
-  
 
             return result;
         }
 
         public override async Task<bool> DeleteAsync(int id, bool hardDelete = false)
         {
-            var result = await base.DeleteAsync(id, hardDelete);
+            var result = await base.DeleteAsync(id, hardDelete); // Base đã gọi CommitAsync
             if (result)
             {
                 _cache.Remove($"chapter_id_{id}");

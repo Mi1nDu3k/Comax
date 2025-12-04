@@ -2,7 +2,9 @@
 {
     public static class ErrorMessages
     {
-        // 1. Các thông báo liên quan đến xác thực (Auth)
+        /// <summary>
+        /// 1. Các thông báo liên quan đến xác thực (Auth)
+        /// </summary>
         public static class Auth
         {
             public const string EmailExists = "Email đã tồn tại trong hệ thống.";
@@ -18,15 +20,20 @@
             public const string Unbanned = "User đã được mở khóa";
         }
 
-        // 2. Các thông báo liên quan đến lỗi hệ thống (System)
+        /// <summary>
+        /// 2. Các thông báo liên quan đến lỗi hệ thống (System)
+        /// </summary>
         public static class System
         {
             public const string RoleNotFound = "Lỗi hệ thống: Không tìm thấy Role yêu cầu.";
+            public const string UserNotFound = "Lỗi hệ thống: Không tìm thấy User yêu cầu.";
             public const string DefaultRoleNotFound = "Lỗi hệ thống: Không tìm thấy Role mặc định.";
             public const string ConcurrencyConflict = "Dữ liệu đã bị thay đổi bởi người dùng khác. Vui lòng tải lại trang.";
         }
 
-        // 3. Các thông báo dùng cho Validation (FluentValidation)
+        /// <summary>
+        /// 3. Các thông báo dùng cho Validation (FluentValidation)
+        /// </summary>
         public static class Validation
         {
             public const string UsernameRequired = "Tên đăng nhập không được để trống.";
@@ -44,11 +51,34 @@
 
             public const string RoleInvalid = "Vui lòng chọn quyền hạn hợp lệ.";
         }
+        public static class Comment
+        {
+            public const string ContentRequired = "Nội dung bình luận không được để trống.";
+            public const string ContentTooLong = "Nội dung bình luận không được vượt quá {0} ký tự.";
+            public const string ComicNotFound = "Không tìm thấy truyện với ID: {0}";
+            public const string ParentCommentNotFound = "Không tìm thấy bình luận cha với ID: {0}";
+            public const string HavingRepplyCommnet ="Đã trả lời bình luận của bạn";
+            public const string CommentSuccess = "Bình luận của bạn đã được gửi";
+        }
         public static class Comic
         {
             public const string SlugRequired = "Slug không được để trống.";
             public const string NotFoundBySlug = "Không tìm thấy truyện với slug: {0}";
             public const string ViewCountIncreased = "Đã tăng lượt xem thành công.";
+        }
+
+        public static class User
+        {
+            public const string FavoriteAdded = "Đã thêm truyện vào danh sách yêu thích.";
+            public const string FavoriteRemoved = "Đã bỏ truyện khỏi danh sách yêu thích.";
+            public const string AlreadyFavorited = "Truyện đã có trong danh sách yêu thích.";
+            public const string NotFavorited = "Truyện không có trong danh sách yêu thích.";
+            public const string UpgradeSuccess = "Chúc mừng bạn đã trở thành thành viên vip,các chức năng vip của bạn đã được mở khóa.";
+            public const string DowngradeSuccess = "Tài khoản của bạn đã được hạ cấp về thành viên thường. Gia hạn vip nếu bạn muốn ";
+            public const string InsufficientPrivileges = "Bạn không có quyền thực hiện hành động này.";
+            public const string ProfileUpdated = "Cập nhật thông tin cá nhân thành công.";
+            public const string PasswordChanged = "Đổi mật khẩu thành công.";
+            public const string BannedUser = "Tài khoản của bạn đã bị khóa với lí do  ... .";
         }
     }
 }

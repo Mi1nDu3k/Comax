@@ -6,13 +6,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowFrontend", policy =>
-    {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:3001") // URL của Frontend
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials(); // Nếu cần dùng Cookie/Auth header
-    });
+    options.AddPolicy("AllowNextApp",
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:3000") 
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials(); 
+        });
 });
 
 builder.Services.AddProjectServices(builder.Configuration);
@@ -26,7 +27,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors("AllowNextJs");
+app.UseCors("AllowNextApp");
 
 app.UseHttpsRedirection();
 

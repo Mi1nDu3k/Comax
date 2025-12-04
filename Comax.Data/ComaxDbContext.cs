@@ -22,6 +22,7 @@ namespace Comax.Data
         public DbSet<Rating> Ratings { get; set; } = null!;
         public DbSet<Comment> Comments { get; set; } = null!;
         public DbSet<ComicCategory> ComicCategories { get; set; }
+        public DbSet<Favorite> Favorites { get; set; } = null!;
 
         // --- CẤU HÌNH ---
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -40,6 +41,7 @@ namespace Comax.Data
             // Các cấu hình Relation
             // taoj configuration rieng cho tung entity
             modelBuilder.Entity<User>().HasIndex(u => u.Email).IsUnique();
+            
             modelBuilder.Entity<User>().HasOne(u => u.Role).WithMany(r => r.Users).HasForeignKey(u => u.RoleId);
 
             modelBuilder.Entity<Comic>().HasOne(c => c.Author).WithMany(a => a.Comics).HasForeignKey(c => c.AuthorId);
@@ -47,15 +49,25 @@ namespace Comax.Data
             modelBuilder.Entity<Chapter>().HasOne(ch => ch.Comic).WithMany(c => c.Chapters).HasForeignKey(ch => ch.ComicId);
 
             modelBuilder.Entity<ComicCategory>().HasKey(cc => new { cc.ComicId, cc.CategoryId });
+            
             modelBuilder.Entity<ComicCategory>().HasOne(cc => cc.Comic).WithMany(c => c.ComicCategories).HasForeignKey(cc => cc.ComicId);
+            
             modelBuilder.Entity<ComicCategory>().HasOne(cc => cc.Category).WithMany(c => c.ComicCategories).HasForeignKey(cc => cc.CategoryId);
 
             modelBuilder.Entity<Rating>().HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId);
+            
             modelBuilder.Entity<Rating>().HasOne(r => r.Comic).WithMany().HasForeignKey(r => r.ComicId);
 
             modelBuilder.Entity<Comment>().HasOne(c => c.User).WithMany().HasForeignKey(c => c.UserId);
+            
             modelBuilder.Entity<Comment>().HasOne(c => c.Comic).WithMany().HasForeignKey(c => c.ComicId);
+            
+            modelBuilder.Entity<Favorite>().HasKey(f => new { f.UserId, f.ComicId });
 
+            modelBuilder.Entity<Favorite>().HasOne(f => f.User).WithMany() .HasForeignKey(f => f.UserId);
+
+            modelBuilder.Entity<Favorite>().HasOne(f => f.Comic).WithMany().HasForeignKey(f => f.ComicId);
+            modelBuilder.Entity<Notification>().HasOne(n => n.User).WithMany().HasForeignKey(n => n.UserId);
             // Cấu hình Soft Delete tự động
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {

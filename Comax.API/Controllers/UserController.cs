@@ -1,7 +1,7 @@
 ﻿using Comax.Business.Interfaces;
 using Comax.Common.DTOs;
 using Comax.Common.DTOs.User;
-using Comax.Shared; // <-- Import namespace Shared
+using Comax.Shared; 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

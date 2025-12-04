@@ -43,9 +43,12 @@ namespace Comax.Mapping
         //rating and comment mappings can be added here when needed
                 CreateMap<Rating,RatingCreateDTO>();
                 CreateMap<Rating,RatingUpdateDTO>();
-                CreateMap<Comment,CommentCreateDTO>();
+            
+            
+            CreateMap<Comment, CommentDTO>()
+   .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Username)); // Map tên user
+            CreateMap<CommentCreateDTO, Comment>();
             CreateMap<CommentUpdateDTO, Comment>();
-
 
 
 

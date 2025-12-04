@@ -2,6 +2,7 @@
 using Comax.Business.Interfaces;
 using Comax.Common.DTOs;
 using Comax.Common.DTOs.User;
+using Comax.Common.Enums;
 using Comax.Common.Helpers;
 using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
@@ -18,33 +19,35 @@ namespace Comax.Business.Services
         private readonly IRoleRepository _roleRepo;
         private readonly IJwtHelper _jwtHelper;
         private readonly IMapper _mapper;
+        private readonly INotificationService _notiService;
 
         public UserService(
             IUserRepository userRepo,
             IRoleRepository roleRepo,
             IMapper mapper,
-            IJwtHelper jwtHelper) : base(userRepo, mapper)
+            IJwtHelper jwtHelper,
+            IUnitOfWork unitOfWork,
+            INotificationService notificationService) : base(userRepo, unitOfWork, mapper) 
         {
             _userRepo = userRepo;
             _roleRepo = roleRepo;
             _mapper = mapper;
             _jwtHelper = jwtHelper;
+            _notiService = notificationService;
         }
 
         #region Authentication
 
         public async Task<AuthResultDTO> RegisterAsync(RegisterDTO dto)
-        {   ///<summary>
-            /// Kiểm tra Email trùng
-            /// </summary>
+        {
+           
             var existingUser = await _userRepo.GetByEmailAsync(dto.Email);
             if (existingUser != null)
             {
                 return new AuthResultDTO { Success = false, Message = ErrorMessages.Auth.EmailExists };
             }
-            ///<summary>
-            /// Tìm Role (Mặc định là User nếu không truyền hoặc truyền 0)
-            ///</summary>
+
+            
             int roleIdToUse = dto.RoleId;
             string roleName = "User";
 
@@ -61,9 +64,8 @@ namespace Comax.Business.Services
                 var r = await _roleRepo.GetByIdAsync(dto.RoleId);
                 if (r != null) roleName = r.Name;
             }
-            ///<summary>
-            /// 3. Tạo Entity User
-            /// </summary>
+
+            // 3. Tạo Entity User
             var newUser = new User
             {
                 Username = dto.Username,
@@ -71,15 +73,15 @@ namespace Comax.Business.Services
                 PasswordHash = PasswordHelper.HashPassword(dto.Password),
                 RoleId = roleIdToUse,
                 IsDeleted = false,
-                IsBanned = false, // Mặc định không bị ban
-                IsVip = false,    // Mặc định không phải VIP
+                IsBanned = false, 
+                IsVip = false,    
                 CreatedAt = DateTime.UtcNow
             };
 
             await _userRepo.AddAsync(newUser);
-            ///<summary>
-            /// Tạo Token & Trả về kết quả
-            /// </summary>
+            await _unitOfWork.CommitAsync(); 
+
+            // 4. Tạo Token & Trả về kết quả
             var token = _jwtHelper.GenerateToken(newUser.Id.ToString(), roleName);
 
             return new AuthResultDTO
@@ -88,6 +90,7 @@ namespace Comax.Business.Services
                 Message = ErrorMessages.Auth.RegisterSuccess,
                 Token = token,
                 Username = newUser.Username,
+                UserId = newUser.Id,
                 Email = newUser.Email,
                 Role = roleName,
                 CreatedAt = newUser.CreatedAt,
@@ -97,28 +100,28 @@ namespace Comax.Business.Services
 
         public async Task<AuthResultDTO> LoginAsync(LoginDTO dto)
         {
-            // 1. Lấy thông tin User
+           
             var user = await _userRepo.GetByEmailAsync(dto.Email);
 
-            // 2. Kiểm tra tài khoản và mật khẩu
+           
             if (user == null || !PasswordHelper.VerifyPassword(dto.Password, user.PasswordHash))
             {
                 return new AuthResultDTO { Success = false, Message = ErrorMessages.Auth.InvalidCredentials };
             }
 
-            // 3. Kiểm tra xem tài khoản có bị Soft Delete không
+            
             if (user.IsDeleted)
             {
                 return new AuthResultDTO { Success = false, Message = ErrorMessages.Auth.AccountLocked };
             }
 
-            // 4. Kiểm tra xem tài khoản có bị BAN không (Logic mới)
+            
             if (user.IsBanned)
             {
                 return new AuthResultDTO { Success = false, Message = ErrorMessages.Auth.AccountLocked };
             }
 
-            // 5. Lấy tên Role
+            
             string roleName = user.Role?.Name;
             if (string.IsNullOrEmpty(roleName))
             {
@@ -126,14 +129,22 @@ namespace Comax.Business.Services
                 roleName = role?.Name ?? "User";
             }
 
-            // 6. Tạo Token
+            
             var token = _jwtHelper.GenerateToken(user.Id.ToString(), roleName);
+            
+            await _notiService.CreateAsync(
+            user.Id,
+            $"Phát hiện đăng nhập mới vào lúc {DateTime.UtcNow.ToString("HH:mm dd/MM")}",
+            "/profile",
+            NotificationType.System
+        );
 
             return new AuthResultDTO
             {
                 Success = true,
                 Message = ErrorMessages.Auth.LoginSuccess,
                 Token = token,
+                UserId= user.Id,
                 Username = user.Username,
                 Email = user.Email,
                 Role = roleName
@@ -150,13 +161,20 @@ namespace Comax.Business.Services
             if (user == null) return false;
 
             var vipRole = await _roleRepo.GetByNameAsync("VipUser");
-            if (vipRole == null) throw new Exception(ErrorMessages.System.RoleNotFound);
+            if (vipRole == null) throw new Exception(ErrorMessages.System.UserNotFound);
 
             // Cập nhật lên VIP
             user.RoleId = vipRole.Id;
             user.IsVip = true;
 
             await _userRepo.UpdateAsync(user);
+            await _unitOfWork.CommitAsync();
+            await _notiService.CreateAsync(
+            userId,
+            ErrorMessages.User.UpgradeSuccess,
+            "/profile",
+            NotificationType.Account
+        );
             return true;
         }
 
@@ -173,17 +191,16 @@ namespace Comax.Business.Services
             user.IsVip = false;
 
             await _userRepo.UpdateAsync(user);
+            await _unitOfWork.CommitAsync(); // LƯU VÀO DB
             return true;
         }
 
         public async Task<List<UserDTO>> GetVipUsersAsync()
         {
             var vipRole = await _roleRepo.GetByNameAsync("VipUser");
-            if (vipRole == null) return new List<UserDTO>(); // Trả về list rỗng nếu chưa có role VIP
+            if (vipRole == null) return new List<UserDTO>();
 
-            // Giả sử UserRepository có hàm lấy theo RoleId (đã thêm ở các bước trước)
             var users = await _userRepo.GetByRoleIdAsync(vipRole.Id);
-
             return _mapper.Map<List<UserDTO>>(users);
         }
 
@@ -196,10 +213,16 @@ namespace Comax.Business.Services
             var user = await _userRepo.GetByIdAsync(userId);
             if (user == null) return false;
 
-            // Set cờ IsBanned
             user.IsBanned = true;
 
             await _userRepo.UpdateAsync(user);
+            await _unitOfWork.CommitAsync();
+            await _notiService.CreateAsync(
+            userId,
+            ErrorMessages.User.BannedUser,
+            "#",
+            NotificationType.Account
+        );
             return true;
         }
 
@@ -208,10 +231,10 @@ namespace Comax.Business.Services
             var user = await _userRepo.GetByIdAsync(userId);
             if (user == null) return false;
 
-            // Bỏ cờ IsBanned
             user.IsBanned = false;
 
             await _userRepo.UpdateAsync(user);
+            await _unitOfWork.CommitAsync(); // LƯU VÀO DB
             return true;
         }
 

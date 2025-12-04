@@ -20,11 +20,13 @@ namespace Comax.Business.Services
         private readonly IMemoryCache _memoryCache;
 
         public ComicService(
-            IComicRepository repo,
-            IMapper mapper,
-            IStorageService storageService,
-            IViewCountBuffer viewBuffer,
-            IMemoryCache memoryCache) : base(repo, mapper)
+         IComicRepository repo,
+         IMapper mapper,
+         IStorageService storageService,
+         IViewCountBuffer viewBuffer,
+         IMemoryCache memoryCache,
+         IUnitOfWork unitOfWork) 
+         : base(repo, unitOfWork, mapper) 
         {
             _comicRepo = repo;
             _storageService = storageService;

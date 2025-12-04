@@ -1,6 +1,5 @@
 ﻿using AutoMapper;
-using Comax.Business.Services.Interfaces; // Sửa namespace nếu cần
-using Comax.Business.Interfaces;
+using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs.Author;
 using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
@@ -13,16 +12,15 @@ namespace Comax.Business.Services
 {
     public class AuthorService : BaseService<Author, AuthorDTO, AuthorCreateDTO, AuthorUpdateDTO>, IAuthorService
     {
-        private readonly IAuthorRepository _repo;
         private readonly IMemoryCache _cache;
         private const string ALL_AUTHORS_KEY = "authors_all";
 
         public AuthorService(
             IAuthorRepository repo,
             IMapper mapper,
-            IMemoryCache cache) : base(repo, mapper)
+            IMemoryCache cache,
+            IUnitOfWork unitOfWork) : base(repo, unitOfWork, mapper)
         {
-            _repo = repo;
             _cache = cache;
         }
 
@@ -35,19 +33,9 @@ namespace Comax.Business.Services
             });
         }
 
-        public override async Task<AuthorDTO?> GetByIdAsync(int id)
-        {
-            string key = $"author_{id}";
-            return await _cache.GetOrCreateAsync(key, async entry =>
-            {
-                entry.SlidingExpiration = TimeSpan.FromMinutes(10);
-                return await base.GetByIdAsync(id);
-            });
-        }
-
         public override async Task<AuthorDTO> CreateAsync(AuthorCreateDTO dto)
         {
-            var result = await base.CreateAsync(dto);
+            var result = await base.CreateAsync(dto); // Base gọi CommitAsync
             _cache.Remove(ALL_AUTHORS_KEY);
             return result;
         }
@@ -56,18 +44,13 @@ namespace Comax.Business.Services
         {
             var result = await base.UpdateAsync(id, dto);
             _cache.Remove(ALL_AUTHORS_KEY);
-            _cache.Remove($"author_{id}");
             return result;
         }
 
         public override async Task<bool> DeleteAsync(int id, bool hardDelete = false)
         {
             var result = await base.DeleteAsync(id, hardDelete);
-            if (result)
-            {
-                _cache.Remove(ALL_AUTHORS_KEY);
-                _cache.Remove($"author_{id}");
-            }
+            if (result) _cache.Remove(ALL_AUTHORS_KEY);
             return result;
         }
     }

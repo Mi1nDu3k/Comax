@@ -47,6 +47,9 @@ namespace Comax.API.Extensions
             services.AddScoped<IRatingRepository, RatingRepository>();
             services.AddScoped<ICommentRepository, CommentRepository>();
             services.AddScoped<IReportRepository, ReportRepository>();
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<IFavoriteRepository, FavoriteRepository>();
+            services.AddScoped<INotificationRepository, NotificationRepository>();
 
             // 5. Add Services
             services.AddScoped<IUserService, UserService>();
@@ -57,7 +60,8 @@ namespace Comax.API.Extensions
             services.AddScoped<IRatingService, RatingService>();
             services.AddScoped<ICommentService, CommentService>();
             services.AddScoped<IReportService, ReportService>();
-
+            services.AddScoped<IFavoriteService, FavoriteService>();
+            services.AddScoped<INotificationService, NotificationService>();
             // 6. Controllers + FluentValidation
             services.AddControllers();
             services.AddFluentValidationAutoValidation()
