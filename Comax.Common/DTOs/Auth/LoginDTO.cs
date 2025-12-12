@@ -1,4 +1,4 @@
-﻿namespace Comax.Common.DTOs
+﻿namespace Comax.Common.DTOs.Auth
 {
     public class LoginDTO
     {

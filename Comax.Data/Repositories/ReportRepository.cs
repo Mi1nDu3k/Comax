@@ -1,6 +1,11 @@
-﻿using Comax.Data.Repositories.Interfaces;
+﻿using Comax.Data.Entities;
+using Comax.Data.Repositories.Interfaces;
 using Comax.Common.DTOs.Report;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace Comax.Data.Repositories
 {
@@ -15,78 +20,91 @@ namespace Comax.Data.Repositories
 
         public async Task<DashboardReportDTO> GetDashboardStatsAsync()
         {
-            return new DashboardReportDTO
+            var response = new DashboardReportDTO();
+
+            // 1. Số liệu tổng quan
+            response.TotalUsers = await _context.Users.CountAsync();
+            response.TotalComics = await _context.Comics.CountAsync();
+            response.TotalChapters = await _context.Chapters.CountAsync();
+            // response.TotalComments = await _context.Comments.CountAsync(); 
+
+            // 2. LOGIC BIỂU ĐỒ USER (7 ngày qua)
+            var sevenDaysAgo = DateTime.Now.AddDays(-7);
+
+            // Lấy dữ liệu group theo ngày từ DB
+            var userStats = await _context.Users
+                .Where(u => u.CreatedAt >= sevenDaysAgo)
+                .GroupBy(u => u.CreatedAt.Date)
+                .Select(g => new { Date = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            // Fill dữ liệu vào list (Xử lý trường hợp ngày không có user nào = 0)
+            for (int i = 6; i >= 0; i--)
             {
-                TotalUsers = await _context.Users.CountAsync(),
-                TotalComics = await _context.Comics.CountAsync(),
-                TotalChapters = await _context.Chapters.CountAsync(),
-                TotalComments = await _context.Comments.CountAsync()
-            };
+                var date = DateTime.Now.AddDays(-i).Date;
+                var stat = userStats.FirstOrDefault(u => u.Date == date);
+
+                response.Labels.Add(date.ToString("dd/MM")); // Nhãn ngày
+                response.UserGrowthData.Add(stat?.Count ?? 0); // Số lượng
+            }
+
+            // 3. LOGIC BIỂU ĐỒ CATEGORY (Top 5 thể loại)
+            var catStats = await _context.Categories
+                .Select(c => new
+                {
+                    Name = c.Name,
+                    Count = c.ComicCategories.Count()
+                })
+                .OrderByDescending(x => x.Count)
+                .Take(5)
+                .ToListAsync();
+
+            response.CategoryLabels = catStats.Select(x => x.Name).ToList();
+            response.ComicByCategoryData = catStats.Select(x => x.Count).ToList();
+
+            return response;
         }
 
         public async Task<List<TopComicDTO>> GetTopViewedComicsAsync(int top)
         {
-            return await _context.Comics
-                .OrderByDescending(c => c.ViewCount)
-                .Take(top)
-                .Select(c => new TopComicDTO
-                {
-                    Id = c.Id,
-                    Title = c.Title,
-                    ViewCount = c.ViewCount,
-                    AverageRating = c.Rating, 
-                    RatingCount = _context.Ratings.Count(r => r.ComicId == c.Id)
-                })
-                .ToListAsync();
+            // BƯỚC 1: Lấy dữ liệu thô từ DB về trước (Tránh lỗi dịch SQL int.Parse)
+            var comics = await _context.Comics
+               .OrderByDescending(c => c.ViewCount)
+               .Take(top)
+               .ToListAsync();
+
+            // BƯỚC 2: Map sang DTO trong bộ nhớ (In-Memory)
+            return comics.Select(c => new TopComicDTO
+            {
+                Id = c.Id,
+                Title = c.Title,
+                ThumbnailUrl = c.CoverImage,
+                ViewCount = c.ViewCount,
+                Rating = c.Rating,
+                // Parse an toàn: dùng TryParse để tránh crash nếu Status là null hoặc chuỗi rác
+                Status = int.TryParse(c.Status, out int s) ? s : 0
+            }).ToList();
         }
 
         public async Task<List<TopComicDTO>> GetTopRatedComicsAsync(int top)
         {
-            var topStats = await _context.Ratings
-                .GroupBy(r => r.ComicId)
-                .Select(g => new
-                {
-                    ComicId = g.Key,
-                    AverageRating = g.Average(r => r.Score),
-                    RatingCount = g.Count()
-                })
-                .OrderByDescending(x => x.AverageRating) 
-                .Take(top) 
-                .ToListAsync();
-
-            if (!topStats.Any()) return new List<TopComicDTO>();
-
-           
-            var comicIds = topStats.Select(s => s.ComicId).ToList();
-
-            
+            // BƯỚC 1: Lấy dữ liệu thô
             var comics = await _context.Comics
-                .Where(c => comicIds.Contains(c.Id))
-                .Select(c => new
-                {
-                    c.Id,
-                    c.Title,
-                    c.ViewCount
-                  
-                })
-                .ToListAsync();
+               .OrderByDescending(c => c.Rating)
+               .Take(top)
+               .ToListAsync();
 
-           
-            var result = topStats.Join(comics,
-                stat => stat.ComicId,
-                comic => comic.Id,
-                (stat, comic) => new TopComicDTO
-                {
-                    Id = comic.Id,
-                    Title = comic.Title,
-                    ViewCount = comic.ViewCount,
-                    AverageRating = Math.Round(stat.AverageRating, 1), 
-                    RatingCount = stat.RatingCount
-                })
-                .OrderByDescending(x => x.AverageRating) 
-                .ToList();
-
-            return result;
+            // BƯỚC 2: Map sang DTO
+            return comics.Select(c => new TopComicDTO
+            {
+                Id = c.Id,
+                Title = c.Title,
+                ThumbnailUrl = c.CoverImage,
+                ViewCount = c.ViewCount,
+                Rating = c.Rating,
+                // Parse an toàn
+                Status = int.TryParse(c.Status, out int s) ? s : 0
+            }).ToList();
         }
     }
 }

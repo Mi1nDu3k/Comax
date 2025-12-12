@@ -1,7 +1,9 @@
-﻿using Comax.Business.Services.Interfaces;
+﻿using Comax.Business.Services;
+using Comax.Business.Services.Interfaces;
+using Comax.Common.DTOs.Chapter;
 using Comax.Common.DTOs.Comic;
 using Comax.Common.DTOs.Pagination;
-using Comax.Shared; // <-- Import Shared
+using Comax.Shared; 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,13 +11,15 @@ namespace Comax.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class ComicController : ControllerBase
+    public class ComicsController : ControllerBase
     {
         private readonly IComicService _comicService;
+        private readonly IChapterService _chapterService;
 
-        public ComicController(IComicService comicService)
+        public ComicsController(IComicService comicService, IChapterService chapterService)
         {
             _comicService = comicService;
+            _chapterService = chapterService;
         }
 
         /// <summary>
@@ -153,6 +157,13 @@ namespace Comax.API.Controllers
         public IActionResult GetPremiumContent()
         {
             return Ok(new { message = ErrorMessages.Auth.PremiumContent }); 
+        }
+
+        [HttpGet("{id}/chapters")]
+        public async Task<ActionResult<IEnumerable<ChapterDTO>>> GetChapters(int id)
+        {
+            var chapters = await _chapterService.GetByComicIdAsync(id);
+            return Ok(chapters);
         }
     }
 }

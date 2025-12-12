@@ -1,4 +1,4 @@
-﻿using Comax.API.Extensions; // Nhớ using namespace này
+﻿using Comax.API.Extensions; 
 using Comax.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,7 +29,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowNextApp");
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();

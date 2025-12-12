@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Comax.Common.DTOs
+namespace Comax.Common.DTOs.Auth
 {
     public class RegisterDTO
     {

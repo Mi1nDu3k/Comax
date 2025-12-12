@@ -5,19 +5,22 @@ using Comax.Common.DTOs.Comic;
 using Comax.Common.Helpers;
 using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
-using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using static Comax.Shared.ErrorMessages;
+using Microsoft.Extensions.Caching.Memory;
+using ComicEntity = Comax.Data.Entities.Comic;
 
 namespace Comax.Business.Services
 {
-    public class ComicService : BaseService<Comic, ComicDTO, ComicCreateDTO, ComicUpdateDTO>, IComicService
+    public class ComicService : BaseService<ComicEntity, ComicDTO, ComicCreateDTO, ComicUpdateDTO>, IComicService
     {
         private readonly IComicRepository _comicRepo;
         private readonly IStorageService _storageService;
         private readonly IViewCountBuffer _viewBuffer;
         private readonly IMemoryCache _memoryCache;
+        private readonly IUnitOfWork _unitOfWork;
 
         public ComicService(
          IComicRepository repo,
@@ -29,6 +32,7 @@ namespace Comax.Business.Services
          : base(repo, unitOfWork, mapper) 
         {
             _comicRepo = repo;
+            _unitOfWork = unitOfWork;
             _storageService = storageService;
             _viewBuffer = viewBuffer;
             _memoryCache = memoryCache;
@@ -63,11 +67,13 @@ namespace Comax.Business.Services
             });
         }
 
-        // 3. CREATE (UPLOAD ẢNH + AUTO SLUG)
         public override async Task<ComicDTO> CreateAsync(ComicCreateDTO dto)
         {
             // A. Map DTO
-            var entity = _mapper.Map<Comic>(dto);
+            var entity = _mapper.Map<ComicEntity>(dto);
+            entity.Status = "1";
+            entity.ViewCount = 0;
+            entity.Rating = 0;
 
             // B. Upload Ảnh (MinIO)
             if (dto.CoverImageFile != null)
@@ -90,10 +96,42 @@ namespace Comax.Business.Services
                 count++;
                 slug = $"{originalSlug}-{count}";
             }
+
+            // --- ĐOẠN CODE BẠN VỪA HỎI NẰM TỪ ĐÂY ---
             entity.Slug = slug;
+
+            // Xử lý Category (Parse từ chuỗi JSON)
+            if (!string.IsNullOrEmpty(dto.CategoryID))
+            {
+                try
+                {
+                    // Parse chuỗi JSON "[1, 2, 3]" thành List<int>
+                    var categoryIds = System.Text.Json.JsonSerializer.Deserialize<List<int>>(dto.CategoryID);
+
+                    if (categoryIds != null && categoryIds.Any())
+                    {
+                        entity.ComicCategories = new List<ComicCategory>();
+                        foreach (var catId in categoryIds)
+                        {
+                            entity.ComicCategories.Add(new ComicCategory
+                            {
+                                CategoryId = catId
+                                // ComicId sẽ tự động được EF Core điền sau khi Insert Comic
+                            });
+                        }
+                    }
+                }
+                catch
+                {
+                    // Log lỗi nếu JSON sai định dạng (tùy chọn)
+                }
+            }
 
             // D. Lưu vào DB
             await _comicRepo.AddAsync(entity);
+
+            // 👇 QUAN TRỌNG: Lệnh này sẽ lưu Comic và tự động lưu luôn các dòng trong bảng ComicCategory
+            await _unitOfWork.CommitAsync();
 
             return _mapper.Map<ComicDTO>(entity);
         }
@@ -151,8 +189,19 @@ namespace Comax.Business.Services
         // 5. BUFFER VIEW COUNT
         public async Task IncreaseViewCountAsync(int id)
         {
-            _viewBuffer.Increment(id);
-            await Task.CompletedTask;
+           
+            ComicEntity? comic = await _comicRepo.GetByIdAsync(id);
+
+            if (comic != null)
+            {
+                comic.ViewCount++;
+
+                
+                await _comicRepo.UpdateAsync(comic);
+
+               
+                await _unitOfWork.CommitAsync();
+            }
         }
     }
 }

@@ -4,6 +4,8 @@
     {
         public int ComicId { get; set; }
         public string Title { get; set; } = null!;
-        public int number { get; set; }
+        public int ChapterNumber { get; set; }
+
+        public string Content { get; set; }
     }
 }

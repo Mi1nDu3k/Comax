@@ -7,11 +7,11 @@ using System.Security.Claims;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize] 
-public class FavoriteController : ControllerBase
+public class FavoritesController : ControllerBase
 {
     private readonly IFavoriteService _favService;
 
-    public FavoriteController(IFavoriteService favService) { _favService = favService; }
+    public FavoritesController(IFavoriteService favService) { _favService = favService; }
 
     [HttpPost("{comicId}")]
     public async Task<IActionResult> Toggle(int comicId)

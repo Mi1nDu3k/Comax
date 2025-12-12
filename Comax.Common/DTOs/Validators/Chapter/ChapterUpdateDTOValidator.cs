@@ -10,7 +10,7 @@ namespace Comax.Common.DTOs.Validators.Chapter
             RuleFor(x => x.Title)
                 .NotEmpty();
 
-            RuleFor(x => x.number)
+            RuleFor(x => x.ChapterNumber)
                 .GreaterThan(0);
         }
     }

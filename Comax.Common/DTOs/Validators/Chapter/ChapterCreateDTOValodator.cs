@@ -13,7 +13,7 @@ namespace Comax.Common.DTOs.Validators.Chapter
             RuleFor(x => x.ComicId)
                 .GreaterThan(0);
 
-            RuleFor(x => x.number)
+            RuleFor(x => x.ChapterNumber)
                 .GreaterThan(0);
         }
     }

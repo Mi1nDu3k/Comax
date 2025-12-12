@@ -1,4 +1,5 @@
 ﻿using Comax.Common.DTOs;
+using Comax.Common.DTOs.Auth;
 using Comax.Common.Helpers;
 using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;

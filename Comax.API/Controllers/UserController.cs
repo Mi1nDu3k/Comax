@@ -1,9 +1,13 @@
 ﻿using Comax.Business.Interfaces;
-using Comax.Common.DTOs;
+using Comax.Business.Services;
+using Comax.Business.Services.Interfaces; 
+using Comax.Common.DTOs.Auth; 
 using Comax.Common.DTOs.User;
-using Comax.Shared; 
+using Comax.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Comax.API.Controllers
 {
@@ -12,21 +16,21 @@ namespace Comax.API.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly IAuthService _authService; 
 
-        public UserController(IUserService userService)
+
+        public UserController(IUserService userService, IAuthService authService)
         {
             _userService = userService;
+            _authService = authService;
         }
 
         /// <summary>
         /// 1. Đăng ký
         /// </summary>
-        /// <param name="registerDto"></param>
-        /// <returns></returns>
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDTO registerDto)
         {
-            // Validator đã tự động chạy (nhờ cấu hình trong Program.cs)
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var result = await _userService.RegisterAsync(registerDto);
@@ -42,27 +46,28 @@ namespace Comax.API.Controllers
         /// <summary>
         /// 2. Đăng nhập
         /// </summary>
-        /// <param name="loginDto"></param>
-        /// <returns></returns>
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginDTO loginDto)
+        public async Task<IActionResult> Login([FromBody] LoginDTO request)
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            // Sử dụng _authService đã inject để login
+            var token = await _authService.LoginAsync(request);
 
-            var result = await _userService.LoginAsync(loginDto);
+            if (string.IsNullOrEmpty(token))
+                return Unauthorized(new { message = "Email hoặc mật khẩu không đúng" });
 
-            if (!result.Success)
+            // Lấy thông tin user để trả về FE
+            var user = await _userService.GetByEmailAsync(request.Email);
+
+            return Ok(new
             {
-                return Unauthorized(result);
-            }
-
-            return Ok(result);
+                token = token,
+                user = user
+            });
         }
 
         /// <summary>
-        /// 3. Lấy danh sách (Có thể thêm phân trang sau này)
+        /// 3. Lấy danh sách User
         /// </summary>
-        /// <returns></returns>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<UserDTO>>> GetAll()
         {
@@ -73,8 +78,6 @@ namespace Comax.API.Controllers
         /// <summary>
         /// 4. Nâng cấp VIP
         /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
         [HttpPost("{id}/upgrade-vip")]
         [Authorize]
         public async Task<IActionResult> UpgradeToVip(int id)
@@ -82,16 +85,14 @@ namespace Comax.API.Controllers
             var result = await _userService.UpgradeToVipAsync(id);
 
             if (!result)
-                return NotFound(new { message = ErrorMessages.Auth.UserNotFound }); // Refactor
+                return NotFound(new { message = ErrorMessages.Auth.UserNotFound });
 
-            return Ok(new { message = ErrorMessages.Auth.VIPUpgradedSuccess }); // Refactor
+            return Ok(new { message = ErrorMessages.Auth.VIPUpgradedSuccess });
         }
 
         /// <summary>
         /// 5. Hạ cấp VIP (Admin only)
         /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
         [HttpPost("{id}/downgrade-vip")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DowngradeVip(int id)
@@ -99,15 +100,14 @@ namespace Comax.API.Controllers
             var result = await _userService.DowngradeFromVipAsync(id);
 
             if (!result)
-                return NotFound(new { message = ErrorMessages.Auth.UserNotFound }); // Refactor
+                return NotFound(new { message = ErrorMessages.Auth.UserNotFound });
 
-            return Ok(new { message = ErrorMessages.Auth.VIPDowngradedSuccess }); // Refactor
+            return Ok(new { message = ErrorMessages.Auth.VIPDowngradedSuccess });
         }
 
         /// <summary>
         /// 6. Danh sách VIP (Admin only)
         /// </summary>
-        /// <returns></returns>
         [HttpGet("vip-list")]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<List<UserDTO>>> GetVipUsers()
@@ -116,16 +116,14 @@ namespace Comax.API.Controllers
             return Ok(users);
         }
 
-
         [HttpPost("{id}/ban")]
-        [Authorize(Roles = "Admin")] // Chỉ Admin mới được khóa
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> BanUser(int id)
         {
             var result = await _userService.BanUserAsync(id);
             if (!result) return NotFound(new { message = ErrorMessages.Auth.UserNotFound });
 
-            // Bạn có thể thêm message vào ErrorMessages.Auth.BannedSuccess nếu muốn
-            return Ok(new { message = ErrorMessages.Auth.Banned});
+            return Ok(new { message = ErrorMessages.Auth.Banned });
         }
 
         [HttpPost("{id}/unban")]
@@ -138,14 +136,11 @@ namespace Comax.API.Controllers
             return Ok(new { message = ErrorMessages.Auth.Unbanned });
         }
 
-
         /// <summary>
         /// 7. Xóa User
         /// </summary>
-        /// <param name="id"></param>
-        /// <param name="hardDelete"></param>
-        /// <returns></returns>
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")] // Nên thêm quyền Admin cho hành động xóa
         public async Task<IActionResult> Delete(int id, [FromQuery] bool hardDelete = false)
         {
             var result = await _userService.DeleteAsync(id, hardDelete);

@@ -1,4 +1,7 @@
-﻿namespace Comax.Data.Entities
+﻿using Comax.Common.Enums;
+using System.ComponentModel.DataAnnotations.Schema;
+
+namespace Comax.Data.Entities
 {
     // Thêm kế thừa BaseEntity
     public class User : BaseEntity
@@ -8,8 +11,11 @@
         public string Email { get; set; }
         public string PasswordHash { get; set; }
         public int RoleId { get; set; }
-        public Role Role { get; set; }
+        [ForeignKey("RoleId")]
+        public virtual Role Role { get; set; }
         public bool IsVip { get; set; } = false;
         public bool IsBanned { get; set; }=false;
+        public DateTime? VipExpireAt { get; set; }
+        public SubscriptionStatus SubStatus { get; set; } = SubscriptionStatus.Active;
     }
 }

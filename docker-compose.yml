@@ -14,6 +14,20 @@ services:
     command: server /data --console-address ":9001"
     restart: always
 
+
+  # Thêm service mới này vào:
+  vip-worker:
+    build:
+      context: .
+      dockerfile: Comax.VipWorker/Dockerfile
+    container_name: comax-vip-worker
+    restart: always
+    # Cấu hình kết nối DB y hệt như bên API
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=db;Database=ComaxDb;User=root;Password=11111111;
+    depends_on:
+      - db # Đợi DB chạy xong thì Worker mới chạy
+
 # (Tùy chọn) Thêm MinIO Client (mc) nếu bạn cần cấu hình bucket tự động
 #  createbuckets:
 #    image: minio/mc

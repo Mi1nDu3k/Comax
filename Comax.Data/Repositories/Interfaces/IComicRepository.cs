@@ -1,5 +1,5 @@
 ﻿using Comax.Data.Entities;
-
+using ComicEntity = Comax.Data.Entities.Comic;
 namespace Comax.Data.Repositories.Interfaces
 {
     public interface IComicRepository : IBaseRepository<Comic>

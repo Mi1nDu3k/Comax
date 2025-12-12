@@ -57,6 +57,12 @@ namespace Comax.Business.Services
             });
         }
 
+        public async Task<IEnumerable<ChapterDTO>> GetByComicIdAsync(int comicId)
+        {
+            var chapters = await _chapterRepo.GetByComicIdAsync(comicId);
+            return _mapper.Map<IEnumerable<ChapterDTO>>(chapters.OrderByDescending(x => x.Order));
+        }
+
         // --- WRITE (Dùng UnitOfWork) ---
 
         public override async Task<ChapterDTO> CreateAsync(ChapterCreateDTO dto)

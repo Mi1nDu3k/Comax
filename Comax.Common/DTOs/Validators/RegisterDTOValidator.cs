@@ -1,4 +1,4 @@
-﻿using Comax.Common.DTOs;
+﻿using Comax.Common.DTOs.Auth;
 using Comax.Shared;
 using FluentValidation;
 

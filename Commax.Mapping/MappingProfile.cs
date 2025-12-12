@@ -27,12 +27,29 @@ namespace Comax.Mapping
             CreateMap<CategoryUpdateDTO, Category>();
 
             // Chapter
-            CreateMap<Chapter, ChapterDTO>();
-            CreateMap<ChapterCreateDTO, Chapter>();
-            CreateMap<ChapterUpdateDTO, Chapter>();
+            CreateMap<Chapter, ChapterDTO>()
+                .ForMember(dest => dest.ChapterNumber, opt => opt.MapFrom(src => src.Order));
+
+            // 2. CreateDTO (ChapterNumber) -> Entity (Order)
+            CreateMap<ChapterCreateDTO, Chapter>()
+                // Lỗi cũ là do gọi src.number, phải sửa thành src.ChapterNumber
+                .ForMember(dest => dest.Order, opt => opt.MapFrom(src => src.ChapterNumber))
+                .ForMember(dest => dest.Slug, opt => opt.Ignore());
+
+            // 3. UpdateDTO (ChapterNumber) -> Entity (Order)
+            CreateMap<ChapterUpdateDTO, Chapter>()
+                // Lỗi cũ là do gọi src.number, phải sửa thành src.ChapterNumber
+                .ForMember(dest => dest.Order, opt => opt.MapFrom(src => src.ChapterNumber))
+                .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
 
             // Comic
-            CreateMap<Comic, ComicDTO>();
+            CreateMap<Comic, ComicDTO>()
+                // 1. Map CoverImage -> ThumbnailUrl
+                .ForMember(dest => dest.ThumbnailUrl, opt => opt.MapFrom(src => src.CoverImage))
+                // 2. Map Author.Name -> AuthorName (Kiểm tra null an toàn)
+                .ForMember(dest => dest.AuthorName, opt => opt.MapFrom(src => src.Author != null ? src.Author.Name : "N/A"))
+                // 3. Map Categories
+                .ForMember(dest => dest.CategoryIds, opt => opt.MapFrom(src => src.ComicCategories.Select(cc => cc.CategoryId)));
             CreateMap<ComicCreateDTO, Comic>();
             CreateMap<ComicUpdateDTO, Comic>();
 
