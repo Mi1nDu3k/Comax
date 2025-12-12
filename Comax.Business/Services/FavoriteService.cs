@@ -58,6 +58,13 @@ namespace Comax.Business.Services
                 await _unitOfWork.Favorites.RemoveAsync(existing);
                 await _unitOfWork.CommitAsync();
             }
+
         }
-    }
+        public async Task<List<ComicDTO>> GetFavoritesByUserIdAsync(int userId)
+        {
+            var comics = await _unitOfWork.Favorites.GetUserFavoritesAsync(userId);
+
+            return _mapper.Map<List<ComicDTO>>(comics);
+        }
+        }
     }

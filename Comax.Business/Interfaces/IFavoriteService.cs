@@ -11,5 +11,6 @@ namespace Comax.Business.Interfaces
         Task<List<ComicDTO>> GetUserFavoritesAsync(int userId);
         Task<bool> IsFavoritedAsync(int userId, int comicId);
         Task UnfavoriteAsync(int userId, int comicId);
+        Task<List<ComicDTO>> GetFavoritesByUserIdAsync(int userId);
     }
 }

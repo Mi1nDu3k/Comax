@@ -1,4 +1,5 @@
 ﻿using Comax.Business.Interfaces;
+using Comax.Business.Services;
 using Comax.Data.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -25,9 +26,13 @@ public class FavoritesController : ControllerBase
     [HttpGet("me")]
     public async Task<IActionResult> GetMyFavorites()
     {
-        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
-        var list = await _favService.GetUserFavoritesAsync(userId);
-        return Ok(list);
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim == null) return Unauthorized();
+
+        int userId = int.Parse(userIdClaim.Value);
+
+        var comics = await _favService.GetFavoritesByUserIdAsync(userId);
+        return Ok(comics);
     }
 
     [HttpGet("check/{comicId}")]

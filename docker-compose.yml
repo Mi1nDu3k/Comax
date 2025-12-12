@@ -1,5 +1,6 @@
 ﻿version: '3.8'
 services:
+  
   minio:
     image: quay.io/minio/minio:latest
     container_name: minio
@@ -26,17 +27,17 @@ services:
     environment:
       - ConnectionStrings__DefaultConnection=Server=db;Database=ComaxDb;User=root;Password=11111111;
     depends_on:
-      - db # Đợi DB chạy xong thì Worker mới chạy
+      - db # Đợi DB chạy xong thì Worker mới ch
+  redis: 
+    image: redis:alpine
+    container_name: comax_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - comax-network
 
-# (Tùy chọn) Thêm MinIO Client (mc) nếu bạn cần cấu hình bucket tự động
-#  createbuckets:
-#    image: minio/mc
-#    depends_on:
-#      - minio
-#    entrypoint: >
-#      /bin/sh -c "
-#      /usr/bin/mc config host add myminio http://minio:9000 minioadmin minioadmin;
-#      /usr/bin/mc mb myminio/my-bucket-name;
-#      /usr/bin/mc anonymous set public myminio/my-bucket-name;
-#      exit 0;
-#      "
+volumes:
+  redis_data:
+    driver: local

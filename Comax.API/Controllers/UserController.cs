@@ -51,6 +51,10 @@ namespace Comax.API.Controllers
         {
             // Sử dụng _authService đã inject để login
             var token = await _authService.LoginAsync(request);
+            if (!ModelState.IsValid)
+            { 
+                return BadRequest(ModelState);
+            }
 
             if (string.IsNullOrEmpty(token))
                 return Unauthorized(new { message = "Email hoặc mật khẩu không đúng" });

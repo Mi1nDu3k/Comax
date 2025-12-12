@@ -52,6 +52,7 @@ namespace Comax.API.Extensions
             services.AddScoped<INotificationRepository, NotificationRepository>();
 
             // 5. Add Services
+            services.AddScoped<IAuthService,AuthService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IComicService, ComicService>();
             services.AddScoped<IChapterService, ChapterService>();

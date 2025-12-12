@@ -4,12 +4,17 @@ using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs.Comic;
 using Comax.Common.Helpers;
 using Comax.Data.Entities;
+using Comax.Data.Repositories; 
 using Comax.Data.Repositories.Interfaces;
+using Microsoft.Extensions.Caching.Distributed; 
+using Microsoft.Extensions.Caching.Memory;     
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
-using static Comax.Shared.ErrorMessages;
-using Microsoft.Extensions.Caching.Memory;
+
+// Alias để tránh nhầm lẫn tên class
 using ComicEntity = Comax.Data.Entities.Comic;
 
 namespace Comax.Business.Services
@@ -17,65 +22,87 @@ namespace Comax.Business.Services
     public class ComicService : BaseService<ComicEntity, ComicDTO, ComicCreateDTO, ComicUpdateDTO>, IComicService
     {
         private readonly IComicRepository _comicRepo;
-        private readonly IStorageService _storageService;
-        private readonly IViewCountBuffer _viewBuffer;
-        private readonly IMemoryCache _memoryCache;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IStorageService _storageService;
+        private readonly IMemoryCache _memoryCache; 
+        private readonly IDistributedCache _distCache; 
 
         public ComicService(
-         IComicRepository repo,
-         IMapper mapper,
-         IStorageService storageService,
-         IViewCountBuffer viewBuffer,
-         IMemoryCache memoryCache,
-         IUnitOfWork unitOfWork) 
-         : base(repo, unitOfWork, mapper) 
+           IComicRepository repo,
+            IMapper mapper,
+            IUnitOfWork unitOfWork,
+            IStorageService storageService,
+            IMemoryCache memoryCache,
+            IDistributedCache distCache)
+            : base(repo, unitOfWork, mapper)
         {
             _comicRepo = repo;
             _unitOfWork = unitOfWork;
             _storageService = storageService;
-            _viewBuffer = viewBuffer;
             _memoryCache = memoryCache;
+            _distCache = distCache;
         }
 
-        // 1. GET BY SLUG (CÓ CACHE)
+        // 1. GET BY ID (CÓ CACHE REDIS)
+        public override async Task<ComicDTO?> GetByIdAsync(int id)
+        {
+            string cacheKey = $"comic_id_{id}";
+
+            // A. Kiểm tra Redis Cache trước
+            try
+            {
+                var cachedData = await _distCache.GetStringAsync(cacheKey);
+                if (!string.IsNullOrEmpty(cachedData))
+                {
+                    return JsonSerializer.Deserialize<ComicDTO>(cachedData);
+                }
+            }
+            catch { /* Lỗi cache không được chặn luồng chính */ }
+
+            //Gọi DB
+            var entity = await _comicRepo.GetByIdAsync(id);
+            if (entity == null) return null;
+
+            var dto = _mapper.Map<ComicDTO>(entity);
+
+            // C. Lưu vào Redis (30 phút)
+            try
+            {
+                var options = new DistributedCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(30));
+                await _distCache.SetStringAsync(cacheKey, JsonSerializer.Serialize(dto), options);
+            }
+            catch { }
+
+            return dto;
+        }
+
+        // 2. GET BY SLUG (CÓ CACHE MEMORY - Vì slug ít đổi và cần nhanh)
         public async Task<ComicDTO?> GetBySlugAsync(string slug)
         {
             string key = $"comic_slug_{slug}";
 
             return await _memoryCache.GetOrCreateAsync(key, async entry =>
             {
-                // Cache 10 phút
                 entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10);
 
-                var comic = await _comicRepo.GetBySlugAsync(slug);
-                if (comic == null) return null;
+                var entity = await _comicRepo.GetBySlugAsync(slug);
+                if (entity == null) return null;
 
-                return _mapper.Map<ComicDTO>(comic);
+                return _mapper.Map<ComicDTO>(entity);
             });
         }
 
-        // 2. GET BY ID (OVERRIDE ĐỂ THÊM CACHE)
-        public override async Task<ComicDTO?> GetByIdAsync(int id)
-        {
-            string key = $"comic_id_{id}";
-
-            return await _memoryCache.GetOrCreateAsync(key, async entry =>
-            {
-                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10);
-                return await base.GetByIdAsync(id);
-            });
-        }
-
+        // 3. CREATE (UPLOAD ẢNH + AUTO SLUG + CATEGORY + XÓA CACHE LIST)
         public override async Task<ComicDTO> CreateAsync(ComicCreateDTO dto)
         {
-            // A. Map DTO
             var entity = _mapper.Map<ComicEntity>(dto);
+
+            // Set mặc định
             entity.Status = "1";
             entity.ViewCount = 0;
             entity.Rating = 0;
 
-            // B. Upload Ảnh (MinIO)
+            // Xử lý ảnh
             if (dto.CoverImageFile != null)
             {
                 string imageUrl = await _storageService.UploadFileAsync(dto.CoverImageFile, "comics");
@@ -83,124 +110,102 @@ namespace Comax.Business.Services
             }
             else
             {
-                entity.CoverImage = "https://placehold.co/200x300.png"; // Ảnh mặc định
+                entity.CoverImage = "https://placehold.co/200x300.png";
             }
 
-            // C. Tạo Slug chuẩn SEO (Handle trùng lặp)
+            // Xử lý Slug
             string slug = SlugHelper.GenerateSlug(dto.Title);
             string originalSlug = slug;
             int count = 0;
-
             while ((await _comicRepo.GetBySlugAsync(slug)) != null)
             {
                 count++;
                 slug = $"{originalSlug}-{count}";
             }
-
-            // --- ĐOẠN CODE BẠN VỪA HỎI NẰM TỪ ĐÂY ---
             entity.Slug = slug;
 
-            // Xử lý Category (Parse từ chuỗi JSON)
+            // Xử lý Category JSON
             if (!string.IsNullOrEmpty(dto.CategoryID))
             {
                 try
                 {
-                    // Parse chuỗi JSON "[1, 2, 3]" thành List<int>
-                    var categoryIds = System.Text.Json.JsonSerializer.Deserialize<List<int>>(dto.CategoryID);
+                    var categoryIds = JsonSerializer.Deserialize<List<int>>(dto.CategoryID);
+                    if (categoryIds == null || !categoryIds.Any())
+                    {
+ 
+                        var strIds = JsonSerializer.Deserialize<List<string>>(dto.CategoryID);
+                        categoryIds = strIds?.Select(int.Parse).ToList();
+                    }
 
                     if (categoryIds != null && categoryIds.Any())
                     {
                         entity.ComicCategories = new List<ComicCategory>();
                         foreach (var catId in categoryIds)
                         {
-                            entity.ComicCategories.Add(new ComicCategory
-                            {
-                                CategoryId = catId
-                                // ComicId sẽ tự động được EF Core điền sau khi Insert Comic
-                            });
+                            entity.ComicCategories.Add(new ComicCategory { CategoryId = catId });
                         }
                     }
                 }
-                catch
-                {
-                    // Log lỗi nếu JSON sai định dạng (tùy chọn)
-                }
+                catch { }
             }
 
-            // D. Lưu vào DB
             await _comicRepo.AddAsync(entity);
+            await _unitOfWork.CommitAsync(); 
 
-            // 👇 QUAN TRỌNG: Lệnh này sẽ lưu Comic và tự động lưu luôn các dòng trong bảng ComicCategory
-            await _unitOfWork.CommitAsync();
 
             return _mapper.Map<ComicDTO>(entity);
         }
 
-        // 4. UPDATE (UPLOAD ẢNH + XÓA CACHE CŨ)
+        // 4. UPDATE (UPLOAD + XÓA CACHE CŨ)
         public override async Task<ComicDTO> UpdateAsync(int id, ComicUpdateDTO dto)
         {
             var entity = await _comicRepo.GetByIdAsync(id);
             if (entity == null) throw new Exception("Comic not found");
 
-            // Lưu lại slug cũ để xóa cache nếu cần
             string oldSlug = entity.Slug;
-
-            // A. Map thông tin mới
             _mapper.Map(dto, entity);
 
-            // B. Xử lý ảnh mới
             if (dto.CoverImageFile != null)
             {
-                // Xóa ảnh cũ trên MinIO nếu không phải ảnh placeholder
-                if (!string.IsNullOrEmpty(entity.CoverImage) && !entity.CoverImage.Contains("placehold.co"))
+                if (!string.IsNullOrEmpty(entity.CoverImage) && !entity.CoverImage.Contains("placehold"))
                 {
                     await _storageService.DeleteFileAsync(entity.CoverImage);
                 }
-
-                // Upload ảnh mới
                 string imageUrl = await _storageService.UploadFileAsync(dto.CoverImageFile, "comics");
                 entity.CoverImage = imageUrl;
             }
 
-            // C. Cập nhật DB
             await _comicRepo.UpdateAsync(entity);
-
-            // D. INVALIDATE CACHE (Quan trọng: Xóa cache cũ để hiển thị dữ liệu mới)
-            _memoryCache.Remove($"comic_id_{id}");
-            if (!string.IsNullOrEmpty(oldSlug))
-            {
-                _memoryCache.Remove($"comic_slug_{oldSlug}");
-            }
-            // Nếu slug thay đổi thì xóa cả key slug mới (đề phòng)
+            await _unitOfWork.CommitAsync();
+            await _distCache.RemoveAsync($"comic_id_{id}");
+            _memoryCache.Remove($"comic_slug_{oldSlug}");
             if (entity.Slug != oldSlug)
             {
                 _memoryCache.Remove($"comic_slug_{entity.Slug}");
             }
+            var updatedEntity = await _comicRepo.GetByIdAsync(id);
 
-            return _mapper.Map<ComicDTO>(entity);
+            return _mapper.Map<ComicDTO>(updatedEntity);
         }
 
+        // 5. SEARCH
         public async Task<IEnumerable<ComicDTO>> SearchByTitleAsync(string title)
         {
             var filteredEntities = await _comicRepo.SearchByTitleAsync(title);
             return _mapper.Map<IEnumerable<ComicDTO>>(filteredEntities);
         }
 
-        // 5. BUFFER VIEW COUNT
+        // 6. INCREASE VIEW (KHÔNG UPDATE CACHE ĐỂ TỐI ƯU HIỆU NĂNG)
         public async Task IncreaseViewCountAsync(int id)
         {
-           
             ComicEntity? comic = await _comicRepo.GetByIdAsync(id);
 
             if (comic != null)
             {
                 comic.ViewCount++;
-
-                
                 await _comicRepo.UpdateAsync(comic);
-
-               
                 await _unitOfWork.CommitAsync();
+
             }
         }
     }

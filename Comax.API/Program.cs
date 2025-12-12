@@ -4,6 +4,13 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("RedisConnection") ?? "localhost:6379";
+    options.InstanceName = "Comax_"; 
+});
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowNextApp",
