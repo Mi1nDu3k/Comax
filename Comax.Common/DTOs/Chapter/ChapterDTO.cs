@@ -1,4 +1,7 @@
-﻿namespace Comax.Common.DTOs.Chapter
+﻿using Comax.Common.DTOs.Page;
+using System.Collections.Generic;
+
+namespace Comax.Common.DTOs.Chapter
 {
     public class ChapterDTO:BaseDto
     {
@@ -9,5 +12,6 @@
         public int ChapterNumber { get; set; }
 
         public DateTime PublishDate { get; set; }
+        public ICollection<PageDTO> Pages { get; set; }
     }
 }

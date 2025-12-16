@@ -1,15 +1,14 @@
 ﻿using Comax.Business.Services.Interfaces;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using Minio;
 using Minio.DataModel.Args;
-using Microsoft.Extensions.Configuration;
-using Comax.Business.Services.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
-namespace Comax.Infrastructure.Services
+namespace Comax.Business.Services
 {
     public class MinioService : IMinioService
     {
@@ -37,10 +36,29 @@ namespace Comax.Infrastructure.Services
             // 1. Kiểm tra và tạo Bucket nếu chưa có
             var beArgs = new BucketExistsArgs().WithBucket(bucketName);
             bool found = await _minioClient.BucketExistsAsync(beArgs);
+
             if (!found)
             {
+                // A. Tạo Bucket mới
                 var mbArgs = new MakeBucketArgs().WithBucket(bucketName);
                 await _minioClient.MakeBucketAsync(mbArgs);
+
+                // B. [MỚI] Tự động set Policy là PUBLIC để sửa lỗi 403 Forbidden
+                string policyJson = $@"{{
+                  ""Version"": ""2012-10-17"",
+                  ""Statement"": [
+                    {{
+                      ""Effect"": ""Allow"",
+                      ""Principal"": {{ ""AWS"": [""*""] }},
+                      ""Action"": [""s3:GetObject""],
+                      ""Resource"": [""arn:aws:s3:::{bucketName}/*""]
+                    }}
+                  ]
+                }}";
+
+                await _minioClient.SetPolicyAsync(new SetPolicyArgs()
+                    .WithBucket(bucketName)
+                    .WithPolicy(policyJson));
             }
 
             // 2. Upload File
@@ -57,10 +75,9 @@ namespace Comax.Infrastructure.Services
                 await _minioClient.PutObjectAsync(putObjectArgs);
             }
 
-            // 3. Trả về đường dẫn (Cần cấu hình đúng URL hiển thị)
+            // 3. Trả về đường dẫn
             // Ví dụ: http://localhost:9000/comics-bucket/abc.jpg
             var minioUrl = _configuration["Minio:DisplayUrl"] ?? _configuration["Minio:Endpoint"];
-            // Lưu ý: Nếu chạy Docker, Endpoint có thể là 'minio:9000' nhưng DisplayUrl phải là 'localhost:9000'
             return $"http://{minioUrl}/{bucketName}/{fileName}";
         }
 

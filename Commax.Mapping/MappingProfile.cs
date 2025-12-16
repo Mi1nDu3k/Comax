@@ -1,14 +1,15 @@
 ﻿using AutoMapper;
+using Comax.Common.DTOs;
 using Comax.Common.DTOs.Author;
-using Comax.Common.DTOs.Comment;
-using Comax.Common.DTOs.Rating;
 using Comax.Common.DTOs.Category;
 using Comax.Common.DTOs.Chapter;
 using Comax.Common.DTOs.Comic;
+using Comax.Common.DTOs.Comment;
+using Comax.Common.DTOs.Page;
+using Comax.Common.DTOs.Rating;
 using Comax.Common.DTOs.User;
 using Comax.Data.Entities;
 using static System.Runtime.InteropServices.JavaScript.JSType;
-using Comax.Common.DTOs;
 
 namespace Comax.Mapping
 {
@@ -28,7 +29,7 @@ namespace Comax.Mapping
 
             // Chapter
             CreateMap<Chapter, ChapterDTO>()
-                .ForMember(dest => dest.ChapterNumber, opt => opt.MapFrom(src => src.Order));
+             .ForMember(dest => dest.Pages, opt => opt.MapFrom(src => src.Pages));
 
             // 2. CreateDTO (ChapterNumber) -> Entity (Order)
             CreateMap<ChapterCreateDTO, Chapter>()
@@ -51,7 +52,7 @@ namespace Comax.Mapping
                 // 3. Map Categories
                 .ForMember(dest => dest.CategoryIds, opt => opt.MapFrom(src => src.ComicCategories.Select(cc => cc.CategoryId)));
             CreateMap<ComicCreateDTO, Comic>();
-
+            CreateMap<Page, PageDTO>();
 
             CreateMap<ComicUpdateDTO, Comic>()
         .ForMember(dest => dest.Id, opt => opt.Ignore())

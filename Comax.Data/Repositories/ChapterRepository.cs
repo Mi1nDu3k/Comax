@@ -20,7 +20,8 @@ namespace Comax.Data.Repositories
         public async Task<Chapter?> GetByComicIdAndSlugAsync(int comicId, string chapterSlug)
         {
             return await _context.Chapters
-                .Include(c => c.Comic) 
+                .Include(c => c.Comic)
+                .Include(c => c.Pages.OrderBy(p => p.Index))
                 .FirstOrDefaultAsync(c => c.ComicId == comicId && c.Slug == chapterSlug && !c.IsDeleted);
         }
     }

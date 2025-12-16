@@ -1,6 +1,6 @@
 ﻿using AutoMapper;
 using Comax.Business.Interfaces;
-using Comax.Business.Services.Interfaces;
+using Comax.Business.Services.Interfaces; // Sửa namespace Interfaces nếu cần
 using Comax.Common.DTOs.Comic;
 using Comax.Common.Helpers;
 using Comax.Data.Entities;
@@ -25,7 +25,7 @@ namespace Comax.Business.Services
         private readonly IDistributedCache _distCache;
 
         public ComicService(
-           IComicRepository repo,
+            IComicRepository repo,
             IMapper mapper,
             IUnitOfWork unitOfWork,
             IStorageService storageService,
@@ -152,16 +152,20 @@ namespace Comax.Business.Services
             return _mapper.Map<ComicDTO>(entity);
         }
 
-        // 4. UPDATE (FIX LỖI 500)
+        // 4. UPDATE (FIXED 500 ERROR)
         public override async Task<ComicDTO> UpdateAsync(int id, ComicUpdateDTO dto)
         {
+            // 1. Lấy Entity từ DB (Tracked)
             var entity = await _comicRepo.GetByIdAsync(id);
             if (entity == null) throw new Exception("Comic not found");
 
             string oldSlug = entity.Slug;
 
-       
+            // 2. Map dữ liệu
             _mapper.Map(dto, entity);
+
+            // [QUAN TRỌNG] Ngắt tham chiếu Author để tránh lỗi Foreign Key
+            entity.Author = null;
 
             // 3. Xử lý ảnh
             if (dto.CoverImageFile != null)
@@ -174,13 +178,12 @@ namespace Comax.Business.Services
                 entity.CoverImage = imageUrl;
             }
 
-            // 4. Xử lý cập nhật danh mục (Category)
+            // 4. Xử lý Category
             if (!string.IsNullOrEmpty(dto.CategoryID))
             {
                 try
                 {
                     var categoryIds = JsonSerializer.Deserialize<List<int>>(dto.CategoryID);
-
                     if (categoryIds == null || !categoryIds.Any())
                     {
                         var strIds = JsonSerializer.Deserialize<List<string>>(dto.CategoryID);
@@ -189,25 +192,23 @@ namespace Comax.Business.Services
 
                     if (categoryIds != null)
                     {
-
                         entity.ComicCategories.Clear();
-
-
                         foreach (var catId in categoryIds)
                         {
                             entity.ComicCategories.Add(new ComicCategory { CategoryId = catId });
                         }
                     }
                 }
-                catch { }
+                catch { /* Log lỗi parse JSON nếu cần */ }
             }
 
-            // 5. Lưu xuống DB
-            await _comicRepo.UpdateAsync(entity);
+            // 5. Cập nhật RowVersion thủ công
+            entity.RowVersion = Guid.NewGuid();
+
+            // [QUAN TRỌNG] Chỉ gọi Commit, KHÔNG gọi UpdateAsync(entity) để tránh lỗi Graph
             await _unitOfWork.CommitAsync();
 
-            // 6.  LOAD LẠI DỮ LIỆU ĐỂ TRẢ VỀ (QUAN TRỌNG ĐỂ TRÁNH LỖI 500)
-
+            // 6. Refresh data
             var refreshedEntity = await _comicRepo.GetByIdAsync(id);
 
             // 7. Xóa Cache
@@ -237,6 +238,7 @@ namespace Comax.Business.Services
             if (comic != null)
             {
                 comic.ViewCount++;
+                // UpdateAsync ở đây an toàn vì comic này không bị map lại từ DTO
                 await _comicRepo.UpdateAsync(comic);
                 await _unitOfWork.CommitAsync();
             }
