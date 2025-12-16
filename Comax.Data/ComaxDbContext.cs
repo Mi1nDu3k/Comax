@@ -23,6 +23,7 @@ namespace Comax.Data
         public DbSet<Comment> Comments { get; set; } = null!;
         public DbSet<ComicCategory> ComicCategories { get; set; }
         public DbSet<Favorite> Favorites { get; set; } = null!;
+        public DbSet<Page> Pages { get; set; }
 
         // --- CẤU HÌNH ---
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

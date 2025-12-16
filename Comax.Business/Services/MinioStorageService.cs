@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Minio;
-using Minio.DataModel.Args; // Lưu ý namespace này ở các bản Minio mới
+using Minio.DataModel.Args;
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -11,28 +11,48 @@ namespace Comax.Business.Services
 {
     public class MinioStorageService : IStorageService
     {
+        private readonly IConfiguration _config;
         private readonly IMinioClient _minioClient;
+
+        // KHAI BÁO THÊM CÁC BIẾN CẦN THIẾT
         private readonly string _bucketName;
         private readonly string _endpoint;
         private readonly bool _useSSL;
 
         public MinioStorageService(IConfiguration config)
         {
-            _endpoint = config["Minio:Endpoint"];
-            var accessKey = config["Minio:AccessKey"];
-            var secretKey = config["Minio:SecretKey"];
-            _bucketName = config["Minio:BucketName"];
-            _useSSL = bool.Parse(config["Minio:UseSSL"]);
+            // 1. Sửa lỗi cú pháp: Đưa lệnh gán vào trong ngoặc nhọn
+            _config = config ?? throw new ArgumentNullException(nameof(config));
 
-            _minioClient = new MinioClient()
-                .WithEndpoint(_endpoint)
-                .WithCredentials(accessKey, secretKey)
-                .WithSSL(_useSSL)
-                .Build();
+            // 2. Lấy giá trị từ Config gán cho biến toàn cục
+            _endpoint = _config.GetValue<string>("Minio:Endpoint");
+            var accessKey = _config.GetValue<string>("Minio:AccessKey");
+            var secretKey = _config.GetValue<string>("Minio:SecretKey");
+            _bucketName = _config.GetValue<string>("Minio:BucketName");
+            _useSSL = _config.GetValue<bool>("Minio:UseSSL"); // Mặc định false nếu không có
+
+            // 3. Khởi tạo Minio Client
+            if (!string.IsNullOrEmpty(_endpoint))
+            {
+                var builder = new MinioClient()
+                                .WithEndpoint(_endpoint)
+                                .WithCredentials(accessKey, secretKey);
+
+                // Cấu hình SSL dựa trên config
+                if (_useSSL)
+                {
+                    builder.WithSSL();
+                }
+
+                _minioClient = builder.Build();
+            }
         }
 
         public async Task<string> UploadFileAsync(IFormFile file, string folderName)
         {
+            // Kiểm tra kết nối trước
+            if (_minioClient == null) throw new InvalidOperationException("Minio Client chưa được khởi tạo.");
+
             // 1. Kiểm tra và tạo Bucket nếu chưa có
             var beArgs = new BucketExistsArgs().WithBucket(_bucketName);
             bool found = await _minioClient.BucketExistsAsync(beArgs);
@@ -41,8 +61,7 @@ namespace Comax.Business.Services
                 var mbArgs = new MakeBucketArgs().WithBucket(_bucketName);
                 await _minioClient.MakeBucketAsync(mbArgs);
 
-                // Set policy public (nếu cần ảnh xem được trực tiếp trên web)
-                // Đây là bước quan trọng nếu muốn link ảnh chạy được trên thẻ <img src="...">
+                // Set policy public để xem ảnh trên web
                 var policyJson = $@"{{
                     ""Version"": ""2012-10-17"",
                     ""Statement"": [{{
@@ -57,7 +76,7 @@ namespace Comax.Business.Services
 
             // 2. Tạo tên file unique
             var fileExtension = Path.GetExtension(file.FileName);
-            var newFileName = $"{folderName}/{Guid.NewGuid()}{fileExtension}"; // VD: comics/abc-xyz.jpg
+            var newFileName = $"{folderName}/{Guid.NewGuid()}{fileExtension}";
 
             // 3. Upload
             using (var stream = file.OpenReadStream())
@@ -74,21 +93,23 @@ namespace Comax.Business.Services
 
             // 4. Trả về URL công khai
             var protocol = _useSSL ? "https" : "http";
+            // Lưu ý: _endpoint thường là localhost:9000
             return $"{protocol}://{_endpoint}/{_bucketName}/{newFileName}";
         }
 
         public async Task DeleteFileAsync(string fileUrl)
         {
-            if (string.IsNullOrEmpty(fileUrl)) return;
+            if (string.IsNullOrEmpty(fileUrl) || _minioClient == null) return;
 
-            // Parse lấy object name từ URL
-            // URL dạng: http://localhost:9000/bucket/comics/abc.jpg
-            // Object name: comics/abc.jpg
             try
             {
                 var uri = new Uri(fileUrl);
-                var path = uri.AbsolutePath.Trim('/'); // bucket/comics/abc.jpg
-                var objectName = path.Substring(path.IndexOf('/') + 1); // comics/abc.jpg
+                var path = uri.AbsolutePath.Trim('/');
+                // path ví dụ: bucket-name/comics/abc.jpg
+
+                // Cắt bỏ phần bucket name để lấy object key
+                // Cách an toàn hơn để lấy Object Name:
+                var objectName = path.Replace($"{_bucketName}/", "");
 
                 var args = new RemoveObjectArgs()
                     .WithBucket(_bucketName)
@@ -98,7 +119,7 @@ namespace Comax.Business.Services
             }
             catch
             {
-                // Log lỗi nếu cần, hoặc bỏ qua
+                // Log lỗi nếu cần
             }
         }
     }

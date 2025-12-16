@@ -5,8 +5,12 @@ using Comax.Common.DTOs.Chapter;
 using Comax.Common.Helpers;
 using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
+using Comax.Common.DTOs; // Đảm bảo namespace này chứa ChapterCreateWithImagesDTO
 using Microsoft.Extensions.Caching.Memory;
 using System;
+using System.Collections.Generic;
+using System.IO; 
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Comax.Business.Services
@@ -17,6 +21,10 @@ namespace Comax.Business.Services
         private readonly IComicRepository _comicRepo;
         private readonly IMemoryCache _cache;
         private readonly INotificationService _noticationService;
+        private readonly IStorageService _storageService;
+
+        // 1. KHAI BÁO SERVICE MINIO
+        private readonly IMinioService _minioService;
 
         public ChapterService(
             IChapterRepository repo,
@@ -24,14 +32,20 @@ namespace Comax.Business.Services
             IMapper mapper,
             IMemoryCache cache,
             IUnitOfWork unitOfWork,
-            INotificationService notiService)
+            INotificationService notiService,
+            IStorageService storageService,
+            IMinioService minioService) // 2. INJECT MINIO SERVICE VÀO ĐÂY
             : base(repo, unitOfWork, mapper)
         {
             _chapterRepo = repo;
             _comicRepo = comicRepo;
             _cache = cache;
-            _noticationService=notiService;
+            _noticationService = notiService;
+            _storageService = storageService;
+            _minioService = minioService; // 3. GÁN GIÁ TRỊ
         }
+
+        // --- CÁC HÀM READ (GIỮ NGUYÊN) ---
 
         public override async Task<ChapterDTO?> GetByIdAsync(int id)
         {
@@ -63,8 +77,9 @@ namespace Comax.Business.Services
             return _mapper.Map<IEnumerable<ChapterDTO>>(chapters.OrderByDescending(x => x.Order));
         }
 
-        // --- WRITE (Dùng UnitOfWork) ---
+        // --- CÁC HÀM WRITE ---
 
+        // Hàm tạo chương không có ảnh (Logic cũ của bạn)
         public override async Task<ChapterDTO> CreateAsync(ChapterCreateDTO dto)
         {
             string slug = SlugHelper.GenerateSlug(dto.Title);
@@ -81,8 +96,106 @@ namespace Comax.Business.Services
 
             await _chapterRepo.AddAsync(entity);
             await _unitOfWork.CommitAsync();
-            var userIds = await _unitOfWork.Favorites.GetUserIdsByComicIdAsync(dto.ComicId);
-            var comic = await _comicRepo.GetByIdAsync(dto.ComicId); // Lấy tên truyện
+
+            // Gửi thông báo
+            await SendNotificationsAsync(dto.ComicId, entity.Title, entity.Slug);
+
+            return _mapper.Map<ChapterDTO>(entity);
+        }
+
+        public override async Task<ChapterDTO> UpdateAsync(int id, ChapterUpdateDTO dto)
+        {
+            var result = await base.UpdateAsync(id, dto);
+            _cache.Remove($"chapter_id_{id}");
+            return result;
+        }
+
+        public override async Task<bool> DeleteAsync(int id, bool hardDelete = false)
+        {
+            var result = await base.DeleteAsync(id, hardDelete);
+            if (result)
+            {
+                _cache.Remove($"chapter_id_{id}");
+            }
+            return result;
+        }
+
+        // --- HÀM QUAN TRỌNG: TẠO CHƯƠNG KÈM ẢNH ---
+        public async Task<ChapterDTO> CreateWithImagesAsync(ChapterCreateWithImagesDTO dto)
+        {
+            // A. Chuẩn bị dữ liệu
+            // Nếu không có Title, tự tạo title là "Chapter X"
+            string finalTitle = !string.IsNullOrEmpty(dto.Title)
+                                ? dto.Title
+                                : $"Chapter {dto.ChapterNumber}";
+
+            string slug = SlugHelper.GenerateSlug(finalTitle);
+
+            // B. Kiểm tra trùng lặp (Theo Slug hoặc ChapterNumber)
+            var existingChapter = await _chapterRepo.GetByComicIdAndSlugAsync(dto.ComicId, slug);
+            if (existingChapter != null)
+            {
+                // Thử check thêm trường hợp trùng số chương
+                throw new Exception($"Chương '{finalTitle}' (Slug: {slug}) đã tồn tại!");
+            }
+
+            // C. Upload ảnh lên MinIO
+            List<string> uploadedUrls = new List<string>();
+            if (dto.Images != null && dto.Images.Count > 0)
+            {
+                // Gọi hàm upload, bucketName là "comics-bucket" hoặc tên bucket của bạn
+                uploadedUrls = await _minioService.UploadFilesAsync(dto.Images, "comics-bucket");
+            }
+
+            // D. Tạo Entity Chapter
+            var newChapter = new Chapter
+            {
+                ComicId = dto.ComicId,
+                ChapterNumber = dto.ChapterNumber, // Cần đảm bảo Entity Chapter có cột này
+                Order = (int)dto.ChapterNumber,    // Dùng để sắp xếp
+                Title = finalTitle,
+                Slug = slug,
+                PublishDate = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                IsDeleted = false,
+
+                // Khởi tạo danh sách Pages rỗng để chuẩn bị thêm
+                Pages = new List<Page>()
+            };
+
+            // E. Tạo các Entity Page từ URL ảnh
+            int pageIndex = 0;
+            foreach (var url in uploadedUrls)
+            {
+                var newPage = new Page
+                {
+                    ImageUrl = url,
+                    Index = pageIndex,
+                    FileName = Path.GetFileName(url),
+                    // ChapterId sẽ được EF Core tự gán khi Add vào Chapter
+                };
+
+                newChapter.Pages.Add(newPage);
+                pageIndex++;
+            }
+
+            // F. Lưu vào Database (Transaction)
+            // Khi Add Chapter, EF Core sẽ tự động Add luôn cả danh sách Pages
+            await _chapterRepo.AddAsync(newChapter);
+            await _unitOfWork.CommitAsync();
+
+            // G. Gửi thông báo (Tái sử dụng logic notification)
+            await SendNotificationsAsync(dto.ComicId, newChapter.Title, newChapter.Slug);
+
+            // H. Trả về DTO (Map từ Entity mới tạo)
+            return _mapper.Map<ChapterDTO>(newChapter);
+        }
+
+        // --- Private Helper Method: Gửi thông báo ---
+        private async Task SendNotificationsAsync(int comicId, string chapterTitle, string chapterSlug)
+        {
+            var userIds = await _unitOfWork.Favorites.GetUserIdsByComicIdAsync(comicId);
+            var comic = await _comicRepo.GetByIdAsync(comicId);
 
             if (userIds.Any() && comic != null)
             {
@@ -92,38 +205,20 @@ namespace Comax.Business.Services
                     notifications.Add(new Notification
                     {
                         UserId = uid,
-                        Message = $"Truyện '{comic.Title}' vừa có chương mới: {entity.Title}",
-                        Url = $"/comic/{comic.Slug}", // Link đến truyện
+                        Message = $"Truyện '{comic.Title}' vừa có chương mới: {chapterTitle}",
+                        Url = $"/comic/{comic.Slug}/chapter/{chapterSlug}", // Link chính xác đến chương
                         IsRead = false,
                         CreatedAt = DateTime.UtcNow
                     });
                 }
+
+                // AddBatchAsync nếu repository hỗ trợ, hoặc loop add
                 foreach (var noti in notifications)
                 {
                     await _unitOfWork.Notifications.AddAsync(noti);
                 }
                 await _unitOfWork.CommitAsync();
             }
-            return _mapper.Map<ChapterDTO>(entity);
-        }
-
-        public override async Task<ChapterDTO> UpdateAsync(int id, ChapterUpdateDTO dto)
-        {
-            var result = await base.UpdateAsync(id, dto); // Base đã gọi CommitAsync
-
-            _cache.Remove($"chapter_id_{id}");
-
-            return result;
-        }
-
-        public override async Task<bool> DeleteAsync(int id, bool hardDelete = false)
-        {
-            var result = await base.DeleteAsync(id, hardDelete); // Base đã gọi CommitAsync
-            if (result)
-            {
-                _cache.Remove($"chapter_id_{id}");
-            }
-            return result;
         }
     }
 }

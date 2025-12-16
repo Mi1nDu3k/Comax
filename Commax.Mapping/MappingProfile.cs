@@ -38,7 +38,7 @@ namespace Comax.Mapping
 
             // 3. UpdateDTO (ChapterNumber) -> Entity (Order)
             CreateMap<ChapterUpdateDTO, Chapter>()
-                // Lỗi cũ là do gọi src.number, phải sửa thành src.ChapterNumber
+              
                 .ForMember(dest => dest.Order, opt => opt.MapFrom(src => src.ChapterNumber))
                 .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
 
@@ -51,7 +51,14 @@ namespace Comax.Mapping
                 // 3. Map Categories
                 .ForMember(dest => dest.CategoryIds, opt => opt.MapFrom(src => src.ComicCategories.Select(cc => cc.CategoryId)));
             CreateMap<ComicCreateDTO, Comic>();
-            CreateMap<ComicUpdateDTO, Comic>();
+
+
+            CreateMap<ComicUpdateDTO, Comic>()
+        .ForMember(dest => dest.Id, opt => opt.Ignore())
+        .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+        .ForMember(dest => dest.Author, opt => opt.Ignore())         
+        .ForMember(dest => dest.ComicCategories, opt => opt.Ignore())
+        .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
 
             // User
             CreateMap<User, UserDTO>();

@@ -4,6 +4,7 @@ using Comax.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Comax.Data.Migrations
 {
     [DbContext(typeof(ComaxDbContext))]
-    partial class ComaxDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251216065024_AddPagesTable_Fin")]
+    partial class AddPagesTable_Fin
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -110,13 +113,11 @@ namespace Comax.Data.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("ChapterNumber")
-                        .HasColumnType("int");
-
                     b.Property<int>("ComicId")
                         .HasColumnType("int");
 
                     b.Property<string>("Content")
+                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<DateTime>("CreatedAt")
@@ -657,7 +658,7 @@ namespace Comax.Data.Migrations
             modelBuilder.Entity("Comax.Data.Entities.Page", b =>
                 {
                     b.HasOne("Comax.Data.Entities.Chapter", "Chapter")
-                        .WithMany("Pages")
+                        .WithMany()
                         .HasForeignKey("ChapterId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -703,11 +704,6 @@ namespace Comax.Data.Migrations
             modelBuilder.Entity("Comax.Data.Entities.Category", b =>
                 {
                     b.Navigation("ComicCategories");
-                });
-
-            modelBuilder.Entity("Comax.Data.Entities.Chapter", b =>
-                {
-                    b.Navigation("Pages");
                 });
 
             modelBuilder.Entity("Comax.Data.Entities.Comic", b =>

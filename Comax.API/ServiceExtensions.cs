@@ -1,4 +1,6 @@
 ﻿using Comax.Business.Interfaces;
+using Comax.Business.Interfaces;
+using Comax.Business.Services;
 using Comax.Business.Services;
 using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs.Validators;
@@ -6,6 +8,7 @@ using Comax.Common.Helpers;
 using Comax.Data;
 using Comax.Data.Repositories;
 using Comax.Data.Repositories.Interfaces;
+using Comax.Infrastructure.Services;
 using Comax.Mapping;
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -13,9 +16,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using Comax.Business.Interfaces;
-using Comax.Business.Services;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace Comax.API.Extensions
 {
@@ -33,7 +35,8 @@ namespace Comax.API.Extensions
             services.AddSingleton<IViewCountBuffer, ViewCountBuffer>();
             services.AddHostedService<ViewCountWorker>();
             services.AddScoped<IStorageService, MinioStorageService>();
-
+            services.AddControllers()
+                .AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
             // 3. Add AutoMapper
             services.AddAutoMapper(typeof(MappingProfile));
 
@@ -63,6 +66,7 @@ namespace Comax.API.Extensions
             services.AddScoped<IReportService, ReportService>();
             services.AddScoped<IFavoriteService, FavoriteService>();
             services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IMinioService, MinioService>();
             // 6. Controllers + FluentValidation
             services.AddControllers();
             services.AddFluentValidationAutoValidation()

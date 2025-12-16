@@ -8,6 +8,16 @@ namespace Comax.Data.Repositories
     {
         public ComicRepository(ComaxDbContext context) : base(context) { }
 
+
+
+        public async Task<Comic?> GetByIdAsync(int id)
+        {
+            return await _dbSet
+                .Include(c => c.Author)    
+                .Include(c => c.ComicCategories)  
+                .FirstOrDefaultAsync(c => c.Id == id);
+        }
+
         public async Task<Comic?> GetBySlugAsync(string slug)
         {
           

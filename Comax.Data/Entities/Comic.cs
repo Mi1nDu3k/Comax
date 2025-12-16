@@ -19,6 +19,7 @@ namespace Comax.Data.Entities
         public int ViewCount { get; set; }     // Số lượt xem
         public int AuthorId { get; set; }
         public Author Author { get; set; }
+     
 
   
 

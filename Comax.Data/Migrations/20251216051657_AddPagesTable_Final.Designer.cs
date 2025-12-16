@@ -4,6 +4,7 @@ using Comax.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Comax.Data.Migrations
 {
     [DbContext(typeof(ComaxDbContext))]
-    partial class ComaxDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251216051657_AddPagesTable_Final")]
+    partial class AddPagesTable_Final
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -110,13 +113,11 @@ namespace Comax.Data.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("ChapterNumber")
-                        .HasColumnType("int");
-
                     b.Property<int>("ComicId")
                         .HasColumnType("int");
 
                     b.Property<string>("Content")
+                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<DateTime>("CreatedAt")
@@ -363,53 +364,6 @@ namespace Comax.Data.Migrations
                     b.ToTable("Notification");
                 });
 
-            modelBuilder.Entity("Comax.Data.Entities.Page", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ChapterId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("FileName")
-                        .HasColumnType("longtext");
-
-                    b.Property<string>("ImageUrl")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("Index")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<Guid>("RowVersion")
-                        .IsConcurrencyToken()
-                        .HasColumnType("char(36)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<int>("ViewCount")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ChapterId");
-
-                    b.ToTable("Pages");
-                });
-
             modelBuilder.Entity("Comax.Data.Entities.Rating", b =>
                 {
                     b.Property<int>("Id")
@@ -654,17 +608,6 @@ namespace Comax.Data.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("Comax.Data.Entities.Page", b =>
-                {
-                    b.HasOne("Comax.Data.Entities.Chapter", "Chapter")
-                        .WithMany("Pages")
-                        .HasForeignKey("ChapterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Chapter");
-                });
-
             modelBuilder.Entity("Comax.Data.Entities.Rating", b =>
                 {
                     b.HasOne("Comax.Data.Entities.Comic", "Comic")
@@ -703,11 +646,6 @@ namespace Comax.Data.Migrations
             modelBuilder.Entity("Comax.Data.Entities.Category", b =>
                 {
                     b.Navigation("ComicCategories");
-                });
-
-            modelBuilder.Entity("Comax.Data.Entities.Chapter", b =>
-                {
-                    b.Navigation("Pages");
                 });
 
             modelBuilder.Entity("Comax.Data.Entities.Comic", b =>

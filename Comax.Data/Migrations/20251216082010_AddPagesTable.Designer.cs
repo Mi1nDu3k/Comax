@@ -4,6 +4,7 @@ using Comax.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Comax.Data.Migrations
 {
     [DbContext(typeof(ComaxDbContext))]
-    partial class ComaxDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251216082010_AddPagesTable")]
+    partial class AddPagesTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -115,9 +118,6 @@ namespace Comax.Data.Migrations
 
                     b.Property<int>("ComicId")
                         .HasColumnType("int");
-
-                    b.Property<string>("Content")
-                        .HasColumnType("longtext");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");

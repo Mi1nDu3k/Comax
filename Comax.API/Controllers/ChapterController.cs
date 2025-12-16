@@ -19,6 +19,33 @@ namespace Comax.API.Controllers
             _comicService = comicService;
         }
 
+        [HttpPost]
+        [DisableRequestSizeLimit] 
+        [RequestFormLimits(MultipartBodyLengthLimit = 524288000)]
+        public async Task<IActionResult> Create([FromForm] ChapterCreateWithImagesDTO dto)
+        {
+            try
+            {
+                // Validate cơ bản
+                if (dto.Images == null || dto.Images.Count == 0)
+                {
+                    return BadRequest("Vui lòng chọn ít nhất 1 ảnh.");
+                }
+
+                var result = await _chapterService.CreateWithImagesAsync(dto);
+
+                // Trả về kết quả 201 Created
+                return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+            }
+            catch (Exception ex)
+            {
+                // Log lỗi ra console để debug
+                Console.WriteLine(ex.ToString());
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+    
+
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ChapterDTO>>> GetAll()
         {
@@ -42,12 +69,12 @@ namespace Comax.API.Controllers
         }
 
         [Authorize(Roles = "Admin")]
-        [HttpPost]
-        public async Task<ActionResult<ChapterDTO>> Create([FromBody] ChapterCreateDTO dto)
-        {
-            var created = await _chapterService.CreateAsync(dto);
-            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
-        }
+        //[HttpPost]
+        //public async Task<ActionResult<ChapterDTO>> Create([FromBody] ChapterCreateDTO dto)
+        //{
+        //    var created = await _chapterService.CreateAsync(dto);
+        //    return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+        //}
 
         [Authorize(Roles = "Admin")]
         [HttpPut("{id}")]

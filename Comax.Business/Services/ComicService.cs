@@ -4,17 +4,14 @@ using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs.Comic;
 using Comax.Common.Helpers;
 using Comax.Data.Entities;
-using Comax.Data.Repositories; 
 using Comax.Data.Repositories.Interfaces;
-using Microsoft.Extensions.Caching.Distributed; 
-using Microsoft.Extensions.Caching.Memory;     
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
-
-// Alias để tránh nhầm lẫn tên class
 using ComicEntity = Comax.Data.Entities.Comic;
 
 namespace Comax.Business.Services
@@ -24,8 +21,8 @@ namespace Comax.Business.Services
         private readonly IComicRepository _comicRepo;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IStorageService _storageService;
-        private readonly IMemoryCache _memoryCache; 
-        private readonly IDistributedCache _distCache; 
+        private readonly IMemoryCache _memoryCache;
+        private readonly IDistributedCache _distCache;
 
         public ComicService(
            IComicRepository repo,
@@ -43,7 +40,7 @@ namespace Comax.Business.Services
             _distCache = distCache;
         }
 
-        // 1. GET BY ID (CÓ CACHE REDIS)
+        // 1. GET BY ID (WITH REDIS CACHE)
         public override async Task<ComicDTO?> GetByIdAsync(int id)
         {
             string cacheKey = $"comic_id_{id}";
@@ -57,9 +54,9 @@ namespace Comax.Business.Services
                     return JsonSerializer.Deserialize<ComicDTO>(cachedData);
                 }
             }
-            catch { /* Lỗi cache không được chặn luồng chính */ }
+            catch { /* Lỗi cache không chặn luồng chính */ }
 
-            //Gọi DB
+            // B. Gọi DB
             var entity = await _comicRepo.GetByIdAsync(id);
             if (entity == null) return null;
 
@@ -76,7 +73,7 @@ namespace Comax.Business.Services
             return dto;
         }
 
-        // 2. GET BY SLUG (CÓ CACHE MEMORY - Vì slug ít đổi và cần nhanh)
+        // 2. GET BY SLUG (WITH MEMORY CACHE)
         public async Task<ComicDTO?> GetBySlugAsync(string slug)
         {
             string key = $"comic_slug_{slug}";
@@ -92,7 +89,7 @@ namespace Comax.Business.Services
             });
         }
 
-        // 3. CREATE (UPLOAD ẢNH + AUTO SLUG + CATEGORY + XÓA CACHE LIST)
+        // 3. CREATE
         public override async Task<ComicDTO> CreateAsync(ComicCreateDTO dto)
         {
             var entity = _mapper.Map<ComicEntity>(dto);
@@ -101,6 +98,7 @@ namespace Comax.Business.Services
             entity.Status = "1";
             entity.ViewCount = 0;
             entity.Rating = 0;
+            entity.CreatedAt = DateTime.UtcNow;
 
             // Xử lý ảnh
             if (dto.CoverImageFile != null)
@@ -132,7 +130,6 @@ namespace Comax.Business.Services
                     var categoryIds = JsonSerializer.Deserialize<List<int>>(dto.CategoryID);
                     if (categoryIds == null || !categoryIds.Any())
                     {
- 
                         var strIds = JsonSerializer.Deserialize<List<string>>(dto.CategoryID);
                         categoryIds = strIds?.Select(int.Parse).ToList();
                     }
@@ -146,25 +143,27 @@ namespace Comax.Business.Services
                         }
                     }
                 }
-                catch { }
+                catch { /* Bỏ qua lỗi parse JSON */ }
             }
 
             await _comicRepo.AddAsync(entity);
-            await _unitOfWork.CommitAsync(); 
-
+            await _unitOfWork.CommitAsync();
 
             return _mapper.Map<ComicDTO>(entity);
         }
 
-        // 4. UPDATE (UPLOAD + XÓA CACHE CŨ)
+        // 4. UPDATE (FIX LỖI 500)
         public override async Task<ComicDTO> UpdateAsync(int id, ComicUpdateDTO dto)
         {
             var entity = await _comicRepo.GetByIdAsync(id);
             if (entity == null) throw new Exception("Comic not found");
 
             string oldSlug = entity.Slug;
+
+       
             _mapper.Map(dto, entity);
 
+            // 3. Xử lý ảnh
             if (dto.CoverImageFile != null)
             {
                 if (!string.IsNullOrEmpty(entity.CoverImage) && !entity.CoverImage.Contains("placehold"))
@@ -175,17 +174,52 @@ namespace Comax.Business.Services
                 entity.CoverImage = imageUrl;
             }
 
+            // 4. Xử lý cập nhật danh mục (Category)
+            if (!string.IsNullOrEmpty(dto.CategoryID))
+            {
+                try
+                {
+                    var categoryIds = JsonSerializer.Deserialize<List<int>>(dto.CategoryID);
+
+                    if (categoryIds == null || !categoryIds.Any())
+                    {
+                        var strIds = JsonSerializer.Deserialize<List<string>>(dto.CategoryID);
+                        categoryIds = strIds?.Select(int.Parse).ToList();
+                    }
+
+                    if (categoryIds != null)
+                    {
+
+                        entity.ComicCategories.Clear();
+
+
+                        foreach (var catId in categoryIds)
+                        {
+                            entity.ComicCategories.Add(new ComicCategory { CategoryId = catId });
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            // 5. Lưu xuống DB
             await _comicRepo.UpdateAsync(entity);
             await _unitOfWork.CommitAsync();
-            await _distCache.RemoveAsync($"comic_id_{id}");
-            _memoryCache.Remove($"comic_slug_{oldSlug}");
-            if (entity.Slug != oldSlug)
-            {
-                _memoryCache.Remove($"comic_slug_{entity.Slug}");
-            }
-            var updatedEntity = await _comicRepo.GetByIdAsync(id);
 
-            return _mapper.Map<ComicDTO>(updatedEntity);
+            // 6.  LOAD LẠI DỮ LIỆU ĐỂ TRẢ VỀ (QUAN TRỌNG ĐỂ TRÁNH LỖI 500)
+
+            var refreshedEntity = await _comicRepo.GetByIdAsync(id);
+
+            // 7. Xóa Cache
+            await _distCache.RemoveAsync($"comic_id_{id}");
+            if (oldSlug != refreshedEntity.Slug)
+            {
+                _memoryCache.Remove($"comic_slug_{oldSlug}");
+            }
+            _memoryCache.Remove($"comic_slug_{refreshedEntity.Slug}");
+
+            // 8. Trả về
+            return _mapper.Map<ComicDTO>(refreshedEntity);
         }
 
         // 5. SEARCH
@@ -195,17 +229,16 @@ namespace Comax.Business.Services
             return _mapper.Map<IEnumerable<ComicDTO>>(filteredEntities);
         }
 
-        // 6. INCREASE VIEW (KHÔNG UPDATE CACHE ĐỂ TỐI ƯU HIỆU NĂNG)
+        // 6. INCREASE VIEW
         public async Task IncreaseViewCountAsync(int id)
         {
-            ComicEntity? comic = await _comicRepo.GetByIdAsync(id);
+            var comic = await _comicRepo.GetByIdAsync(id);
 
             if (comic != null)
             {
                 comic.ViewCount++;
                 await _comicRepo.UpdateAsync(comic);
                 await _unitOfWork.CommitAsync();
-
             }
         }
     }
