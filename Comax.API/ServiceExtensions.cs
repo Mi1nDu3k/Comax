@@ -1,6 +1,4 @@
 ﻿using Comax.Business.Interfaces;
-using Comax.Business.Interfaces;
-using Comax.Business.Services;
 using Comax.Business.Services;
 using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs.Validators;
@@ -31,11 +29,18 @@ namespace Comax.API.Extensions
                     ServerVersion.AutoDetect(configuration.GetConnectionString("DefaultConnection"))
                 )
             );
+
+            // Các Worker và Service cơ bản
             services.AddSingleton<IViewCountBuffer, ViewCountBuffer>();
             services.AddHostedService<ViewCountWorker>();
+
+            // --- ĐĂNG KÝ STORAGE SERVICE (MINIO) ---
+            // Chỉ cần dòng này là đủ. Nó sẽ map IStorageService -> MinioStorageService
             services.AddScoped<IStorageService, MinioStorageService>();
+
             services.AddControllers()
                 .AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
+
             // 3. Add AutoMapper
             services.AddAutoMapper(typeof(MappingProfile));
 
@@ -54,7 +59,7 @@ namespace Comax.API.Extensions
             services.AddScoped<INotificationRepository, NotificationRepository>();
 
             // 5. Add Services
-            services.AddScoped<IAuthService,AuthService>();
+            services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IComicService, ComicService>();
             services.AddScoped<IChapterService, ChapterService>();
@@ -65,11 +70,14 @@ namespace Comax.API.Extensions
             services.AddScoped<IReportService, ReportService>();
             services.AddScoped<IFavoriteService, FavoriteService>();
             services.AddScoped<INotificationService, NotificationService>();
-            services.AddScoped<IMinioService, MinioService>();
+
+            // (Đã xóa IMinioService và MinioStorageService thừa ở đây đi)
+
             // 6. Controllers + FluentValidation
             services.AddControllers();
             services.AddFluentValidationAutoValidation()
                     .AddFluentValidationClientsideAdapters();
+            // Lưu ý: Kiểm tra lại tên class BaseDto hay BaseDTO trong code của bạn
             services.AddValidatorsFromAssemblyContaining<Comax.Common.DTOs.BaseDto>();
 
             // 7. Swagger Configuration

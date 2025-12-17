@@ -1,29 +1,43 @@
 ﻿version: '3.8'
 
 services:
-  # -----------------------------------------------------------
-  # 1. SERVICE MINIO (Lưu trữ ảnh)
-  # -----------------------------------------------------------
+  # 1. DATABASE (Dùng port 3307 để tránh lỗi)
+  db:
+    image: mysql:8.0
+    container_name: comax_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "11111111"
+      MYSQL_DATABASE: "ComaxDb"
+    ports:
+      - "3307:3306"  # <--- QUAN TRỌNG: Đã đổi sang 3307
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - comax-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  # 2. MINIO (Lưu trữ ảnh)
   minio:
     image: quay.io/minio/minio:latest
     container_name: minio
     ports:
-      - "9000:9000" # API port
-      - "9001:9001" # Console port
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     volumes:
-      - ./minio_data:/data # Lưu dữ liệu ra thư mục gốc
+      - ./minio_data:/data
     command: server /data --console-address ":9001"
     restart: always
     networks:
       - comax-network
 
-  # -----------------------------------------------------------
-  # 2. SERVICE TỰ ĐỘNG CẤU HÌNH MINIO (QUAN TRỌNG - MỚI THÊM)
-  # Service này chạy 1 lần để tạo bucket và set quyền Public rồi tự tắt
-  # -----------------------------------------------------------
+  # 3. SETUP MINIO (Sidecar)
   createbuckets:
     image: minio/mc:latest
     depends_on:
@@ -32,21 +46,15 @@ services:
       - comax-network
     entrypoint: >
       /bin/sh -c "
-      # Đợi 5 giây để MinIO server kịp khởi động
       sleep 5;
-      # 1. Đăng nhập vào MinIO (alias là myminio)
       /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin;
-      # 2. Tạo bucket tên là 'comics-bucket' (Lệnh || true để không lỗi nếu đã có)
       /usr/bin/mc mb myminio/comics-bucket || true;
-      # 3. Set quyền Public (Download) cho mọi người
       /usr/bin/mc anonymous set download myminio/comics-bucket;
-      echo '--- DA CAU HINH MINIO PUBLIC XONG ---';
+      echo '--- DA CAU HINH MINIO XONG ---';
       exit 0;
       "
 
-  # -----------------------------------------------------------
-  # 3. SERVICE REDIS (Cache)
-  # -----------------------------------------------------------
+  # 4. REDIS (Cache)
   redis:
     image: redis:alpine
     container_name: comax_redis
@@ -57,9 +65,7 @@ services:
     networks:
       - comax-network
 
-  # -----------------------------------------------------------
-  # 4. SERVICE VIP WORKER (Xử lý ngầm)
-  # -----------------------------------------------------------
+  # 5. WORKER
   vip-worker:
     build:
       context: .
@@ -67,26 +73,21 @@ services:
     container_name: comax-vip-worker
     restart: always
     environment:
-      # Kết nối DB: Lưu ý service database của bạn phải tên là 'db'
       - ConnectionStrings__DefaultConnection=Server=db;Database=ComaxDb;User=root;Password=11111111;
     depends_on:
-      - db # Yêu cầu phải có service tên là 'db' trong file này (hoặc file gốc của bạn)
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      redis:
+        condition: service_started
     networks:
       - comax-network
 
-  # -----------------------------------------------------------
-  # 5. SERVICE DB (DATABASE)
-  # Bạn cần định nghĩa service db ở đây nếu chưa có.
-  # Nếu bạn đã có ở file gốc rồi thì giữ nguyên, chỉ cần đảm bảo nó nằm trong comax-network
-  # -----------------------------------------------------------
-  # db:
-  #   image: mysql:8.0
-  #   ... (cấu hình db của bạn) ...
-  #   networks:
-  #     - comax-network
-
 volumes:
   redis_data:
+    driver: local
+  db_data:
     driver: local
 
 networks:

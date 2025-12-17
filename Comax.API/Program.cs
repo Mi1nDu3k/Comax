@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json.Serialization;
+using Comax.API.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers()
@@ -13,7 +14,7 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
         options.JsonSerializerOptions.WriteIndented = true;
     });
-
+builder.Services.AddSignalR();
 builder.Services.AddStackExchangeRedisCache(options =>
 {
     options.Configuration = builder.Configuration.GetConnectionString("RedisConnection") ?? "localhost:6379";
@@ -60,7 +61,7 @@ app.UseCors("AllowNextApp");
 
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.MapHub<NotificationHub>("/hubs/notification");
 app.MapControllers();
 
 // Seed Data
