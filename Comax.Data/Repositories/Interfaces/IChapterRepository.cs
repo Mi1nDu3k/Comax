@@ -8,5 +8,6 @@ namespace Comax.Data.Repositories.Interfaces
       
         // Tìm chương dựa trên ID truyện và Slug chương
         Task<Chapter?> GetByComicIdAndSlugAsync(int comicId, string chapterSlug);
+        Task<Chapter?> GetByIdAsync(int comicId);
     }
 }

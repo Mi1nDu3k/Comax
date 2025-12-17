@@ -79,7 +79,6 @@ namespace Comax.Business.Services
 
         // --- CÁC HÀM WRITE ---
 
-        // Hàm tạo chương không có ảnh (Logic cũ của bạn)
         public override async Task<ChapterDTO> CreateAsync(ChapterCreateDTO dto)
         {
             string slug = SlugHelper.GenerateSlug(dto.Title);

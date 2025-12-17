@@ -17,7 +17,12 @@ namespace Comax.Mapping
     {
         public MappingProfile()
         {
-            //Author
+            CreateMap<Page, PageDTO>()
+                .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src =>
+        !string.IsNullOrEmpty(src.ImageUrl)
+            ? src.ImageUrl.Replace("http://minio:9000", "http://localhost:9000")
+            : src.ImageUrl
+    ));
             CreateMap<Author, AuthorDTO>();
             CreateMap<AuthorCreateDTO, Author>();
             CreateMap<AuthorUpdateDTO, Author>();
@@ -52,7 +57,6 @@ namespace Comax.Mapping
                 // 3. Map Categories
                 .ForMember(dest => dest.CategoryIds, opt => opt.MapFrom(src => src.ComicCategories.Select(cc => cc.CategoryId)));
             CreateMap<ComicCreateDTO, Comic>();
-            CreateMap<Page, PageDTO>();
 
             CreateMap<ComicUpdateDTO, Comic>()
         .ForMember(dest => dest.Id, opt => opt.Ignore())

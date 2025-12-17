@@ -1,6 +1,9 @@
 ﻿version: '3.8'
+
 services:
-  
+  # -----------------------------------------------------------
+  # 1. SERVICE MINIO (Lưu trữ ảnh)
+  # -----------------------------------------------------------
   minio:
     image: quay.io/minio/minio:latest
     container_name: minio
@@ -11,24 +14,40 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     volumes:
-      - ./minio_data:/data # Lưu dữ liệu tại thư mục minio_data cùng cấp
+      - ./minio_data:/data # Lưu dữ liệu ra thư mục gốc
     command: server /data --console-address ":9001"
     restart: always
+    networks:
+      - comax-network
 
-
-  # Thêm service mới này vào:
-  vip-worker:
-    build:
-      context: .
-      dockerfile: Comax.VipWorker/Dockerfile
-    container_name: comax-vip-worker
-    restart: always
-    # Cấu hình kết nối DB y hệt như bên API
-    environment:
-      - ConnectionStrings__DefaultConnection=Server=db;Database=ComaxDb;User=root;Password=11111111;
+  # -----------------------------------------------------------
+  # 2. SERVICE TỰ ĐỘNG CẤU HÌNH MINIO (QUAN TRỌNG - MỚI THÊM)
+  # Service này chạy 1 lần để tạo bucket và set quyền Public rồi tự tắt
+  # -----------------------------------------------------------
+  createbuckets:
+    image: minio/mc:latest
     depends_on:
-      - db # Đợi DB chạy xong thì Worker mới ch
-  redis: 
+      - minio
+    networks:
+      - comax-network
+    entrypoint: >
+      /bin/sh -c "
+      # Đợi 5 giây để MinIO server kịp khởi động
+      sleep 5;
+      # 1. Đăng nhập vào MinIO (alias là myminio)
+      /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      # 2. Tạo bucket tên là 'comics-bucket' (Lệnh || true để không lỗi nếu đã có)
+      /usr/bin/mc mb myminio/comics-bucket || true;
+      # 3. Set quyền Public (Download) cho mọi người
+      /usr/bin/mc anonymous set download myminio/comics-bucket;
+      echo '--- DA CAU HINH MINIO PUBLIC XONG ---';
+      exit 0;
+      "
+
+  # -----------------------------------------------------------
+  # 3. SERVICE REDIS (Cache)
+  # -----------------------------------------------------------
+  redis:
     image: redis:alpine
     container_name: comax_redis
     ports:
@@ -38,6 +57,38 @@ services:
     networks:
       - comax-network
 
+  # -----------------------------------------------------------
+  # 4. SERVICE VIP WORKER (Xử lý ngầm)
+  # -----------------------------------------------------------
+  vip-worker:
+    build:
+      context: .
+      dockerfile: Comax.VipWorker/Dockerfile
+    container_name: comax-vip-worker
+    restart: always
+    environment:
+      # Kết nối DB: Lưu ý service database của bạn phải tên là 'db'
+      - ConnectionStrings__DefaultConnection=Server=db;Database=ComaxDb;User=root;Password=11111111;
+    depends_on:
+      - db # Yêu cầu phải có service tên là 'db' trong file này (hoặc file gốc của bạn)
+    networks:
+      - comax-network
+
+  # -----------------------------------------------------------
+  # 5. SERVICE DB (DATABASE)
+  # Bạn cần định nghĩa service db ở đây nếu chưa có.
+  # Nếu bạn đã có ở file gốc rồi thì giữ nguyên, chỉ cần đảm bảo nó nằm trong comax-network
+  # -----------------------------------------------------------
+  # db:
+  #   image: mysql:8.0
+  #   ... (cấu hình db của bạn) ...
+  #   networks:
+  #     - comax-network
+
 volumes:
   redis_data:
     driver: local
+
+networks:
+  comax-network:
+    driver: bridge

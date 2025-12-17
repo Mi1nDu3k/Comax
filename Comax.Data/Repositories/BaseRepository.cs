@@ -3,7 +3,9 @@ using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
 using Comax.Shared.Extensions;
 using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 public class BaseRepository<T> : IBaseRepository<T> where T : class
@@ -22,7 +24,8 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
         return await _context.Set<T>().ToListAsync();
     }
 
-    public async Task<T?> GetByIdAsync(int id)
+    // THÊM TỪ KHÓA 'virtual' VÀO ĐÂY
+    public virtual async Task<T?> GetByIdAsync(int id)
     {
         return await _context.Set<T>().FindAsync(id);
     }
@@ -34,14 +37,13 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
             baseEntity.RowVersion = Guid.NewGuid();
         }
         await _context.Set<T>().AddAsync(entity);
-        return entity; // phải trả entity
+        return entity;
     }
 
     public async Task<T?> UpdateAsync(T entity)
     {
         if (entity is Comax.Data.Entities.BaseEntity baseEntity)
         {
-      
             baseEntity.RowVersion = Guid.NewGuid();
         }
 
@@ -53,27 +55,20 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
         }
         catch (DbUpdateConcurrencyException)
         {
-            //(trả về 409 hoặc 412)
             throw;
         }
-
-        return entity;
     }
 
     public async Task<(List<T> Items, int TotalCount)> GetAllPagedAsync(int pageNumber, int pageSize)
     {
         var query = _dbSet.AsQueryable();
 
-        // 1. Đếm tổng số lượng (trước khi Skip/Take)
         var totalCount = await query.CountAsync();
 
-        // 2. Phân trang
         var items = await query
-            .Skip((pageNumber - 1) * pageSize) // Bỏ qua các item của trang trước
-            .Take(pageSize)                   // Chỉ lấy số item của trang hiện tại
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
-
-        //var items = await query.ToPaginationAsync(pageNumber, pageSize).ToListAsync();
 
         return (items, totalCount);
     }
