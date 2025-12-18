@@ -3,10 +3,15 @@ using Comax.Common.Enums;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-public interface INotificationService
+namespace Comax.Business.Interfaces 
 {
-    Task<List<NotificationDTO>> GetMyNotificationsAsync(int userId);
-    Task MarkAsReadAsync(int id);
-    Task MarkAllAsReadAsync(int userId);
-    Task CreateAsync(int userId, string message, string url, NotificationType type);
+    public interface INotificationService
+    {
+        Task<List<NotificationDTO>> GetUserNotificationsAsync(int userId);
+        Task MarkAsReadAsync(int id);
+        Task MarkAllAsReadAsync(int userId);
+        Task DeleteAsync(int notificationId, int userId);
+
+        Task CreateAndSendNotificationAsync(int userId, string message, string url, NotificationType type = NotificationType.System);
+    }
 }

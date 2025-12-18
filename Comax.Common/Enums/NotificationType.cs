@@ -8,9 +8,14 @@ namespace Comax.Common.Enums
 {
     public enum NotificationType
     {
-        System = 1,      // Thông báo hệ thống (VD: Đăng nhập lạ, bảo trì)
-        Account = 2,     // Tài khoản (VD: Lên VIP, bị Ban)
-        Comic = 3,       // Truyện (VD: Có chap mới)
-        Interaction = 4  // Tương tác (VD: Có người trả lời bình luận)
+        System = 1,      
+        Account = 2,      
+
+        
+        NewChapter = 3,   
+        ReplyComment = 4,  
+
+        Comic = 3,
+        Interaction = 4
     }
 }

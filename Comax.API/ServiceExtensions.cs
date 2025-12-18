@@ -2,6 +2,7 @@
 using Comax.Business.Services;
 using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs.Validators;
+using Comax.Common.DTOs;
 using Comax.Common.Helpers;
 using Comax.Data;
 using Comax.Data.Repositories;
@@ -22,6 +23,9 @@ namespace Comax.API.Extensions
     {
         public static void AddProjectServices(this IServiceCollection services, IConfiguration configuration)
         {
+            // 1. QUAN TRỌNG: Đăng ký SignalR (Thêm dòng này để sửa lỗi)
+            services.AddSignalR();
+
             // 2. Add DbContext
             services.AddDbContext<ComaxDbContext>(options =>
                 options.UseMySql(
@@ -34,12 +38,8 @@ namespace Comax.API.Extensions
             services.AddSingleton<IViewCountBuffer, ViewCountBuffer>();
             services.AddHostedService<ViewCountWorker>();
 
-            // --- ĐĂNG KÝ STORAGE SERVICE (MINIO) ---
-            // Chỉ cần dòng này là đủ. Nó sẽ map IStorageService -> MinioStorageService
+            // Storage Service
             services.AddScoped<IStorageService, MinioStorageService>();
-
-            services.AddControllers()
-                .AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
 
             // 3. Add AutoMapper
             services.AddAutoMapper(typeof(MappingProfile));
@@ -71,22 +71,19 @@ namespace Comax.API.Extensions
             services.AddScoped<IFavoriteService, FavoriteService>();
             services.AddScoped<INotificationService, NotificationService>();
 
-            // (Đã xóa IMinioService và MinioStorageService thừa ở đây đi)
-
             // 6. Controllers + FluentValidation
-            services.AddControllers();
+            services.AddControllers()
+                .AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
+
             services.AddFluentValidationAutoValidation()
                     .AddFluentValidationClientsideAdapters();
-            // Lưu ý: Kiểm tra lại tên class BaseDto hay BaseDTO trong code của bạn
             services.AddValidatorsFromAssemblyContaining<Comax.Common.DTOs.BaseDto>();
 
-            // 7. Swagger Configuration
+            // 7. Swagger, JWT, Auth... (Giữ nguyên như cũ)
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(options =>
             {
                 options.SwaggerDoc("v1", new OpenApiInfo { Title = "Comax API", Version = "v1" });
-
-                // Cấu hình ổ khóa Token trên Swagger
                 options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     Name = "Authorization",
@@ -96,7 +93,6 @@ namespace Comax.API.Extensions
                     In = ParameterLocation.Header,
                     Description = "Nhập token vào đây. Ví dụ: Bearer {token}"
                 });
-
                 options.AddSecurityRequirement(new OpenApiSecurityRequirement
                 {
                     {
@@ -113,16 +109,10 @@ namespace Comax.API.Extensions
                 });
             });
 
-            // 8. JWT Authentication
             services.AddScoped<IJwtHelper, JwtHelper>();
 
             var jwtSettings = configuration.GetSection("Jwt");
             var secretKey = jwtSettings["SecretKey"];
-
-            if (string.IsNullOrEmpty(secretKey))
-            {
-                throw new Exception("JWT Secret key is missing in configuration!");
-            }
 
             services.AddAuthentication(options =>
             {
@@ -143,6 +133,11 @@ namespace Comax.API.Extensions
             });
 
             services.AddMemoryCache();
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = configuration.GetConnectionString("RedisConnection") ?? "localhost:6379";
+                options.InstanceName = "Comax_";
+            });
             services.AddAuthorization();
         }
     }

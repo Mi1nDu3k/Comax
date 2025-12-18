@@ -1,16 +1,52 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Comax.Business.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
-[Route("api/notifications")] 
-[ApiController]
-public class NotificationController : ControllerBase
+namespace Comax.API.Controllers // THÊM NAMESPACE NÀY
 {
-    [HttpGet]
-    public IActionResult GetNotifications([FromQuery] int page = 1, [FromQuery] int pageSize = 5)
+    [Route("api/[controller]")]
+    [ApiController]
+    [Authorize]
+    public class NotificationController : ControllerBase
     {
-        return Ok(new
+        private readonly INotificationService _service;
+
+        public NotificationController(INotificationService service)
         {
-            Data = new List<object>(),
-            TotalCount = 0
-        });
+            _service = service;
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetMyNotifications()
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
+            var result = await _service.GetUserNotificationsAsync(userId);
+            return Ok(result);
+        }
+
+        [HttpPut("{id}/read")]
+        public async Task<IActionResult> MarkRead(int id)
+        {
+            await _service.MarkAsReadAsync(id);
+            return Ok(new { message = "Success" });
+        }
+
+        [HttpPut("read-all")]
+        public async Task<IActionResult> MarkAllRead()
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
+            await _service.MarkAllAsReadAsync(userId);
+            return Ok(new { message = "All read" });
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
+            await _service.DeleteAsync(id, userId);
+            return NoContent();
+        }
     }
 }

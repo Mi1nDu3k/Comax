@@ -6,6 +6,8 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System;
+using System.Text;
+using System.Globalization;
 
 namespace Comax.Data
 {
@@ -13,6 +15,7 @@ namespace Comax.Data
     {
         public ComaxDbContext(DbContextOptions<ComaxDbContext> options) : base(options) { }
 
+        // --- DB SETS ---
         public DbSet<User> Users { get; set; }
         public DbSet<Role> Roles { get; set; }
         public DbSet<Author> Authors { get; set; }
@@ -28,7 +31,7 @@ namespace Comax.Data
         // --- CẤU HÌNH ---
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
-            // Bỏ qua cảnh báo Query Filter
+            // Bỏ qua cảnh báo Query Filter khi Include (Required Navigation)
             optionsBuilder.ConfigureWarnings(warnings =>
                 warnings.Ignore(CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning));
 
@@ -39,37 +42,32 @@ namespace Comax.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Các cấu hình Relation
-            // taoj configuration rieng cho tung entity
+            // 1. Cấu hình Relation & Index
             modelBuilder.Entity<User>().HasIndex(u => u.Email).IsUnique();
-            
             modelBuilder.Entity<User>().HasOne(u => u.Role).WithMany(r => r.Users).HasForeignKey(u => u.RoleId);
 
             modelBuilder.Entity<Comic>().HasOne(c => c.Author).WithMany(a => a.Comics).HasForeignKey(c => c.AuthorId);
 
             modelBuilder.Entity<Chapter>().HasOne(ch => ch.Comic).WithMany(c => c.Chapters).HasForeignKey(ch => ch.ComicId);
 
+            // Composite Key cho bảng trung gian
             modelBuilder.Entity<ComicCategory>().HasKey(cc => new { cc.ComicId, cc.CategoryId });
-            
             modelBuilder.Entity<ComicCategory>().HasOne(cc => cc.Comic).WithMany(c => c.ComicCategories).HasForeignKey(cc => cc.ComicId);
-            
             modelBuilder.Entity<ComicCategory>().HasOne(cc => cc.Category).WithMany(c => c.ComicCategories).HasForeignKey(cc => cc.CategoryId);
 
             modelBuilder.Entity<Rating>().HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId);
-            
             modelBuilder.Entity<Rating>().HasOne(r => r.Comic).WithMany().HasForeignKey(r => r.ComicId);
 
             modelBuilder.Entity<Comment>().HasOne(c => c.User).WithMany().HasForeignKey(c => c.UserId);
-            
             modelBuilder.Entity<Comment>().HasOne(c => c.Comic).WithMany().HasForeignKey(c => c.ComicId);
-            
+
             modelBuilder.Entity<Favorite>().HasKey(f => new { f.UserId, f.ComicId });
-
-            modelBuilder.Entity<Favorite>().HasOne(f => f.User).WithMany() .HasForeignKey(f => f.UserId);
-
+            modelBuilder.Entity<Favorite>().HasOne(f => f.User).WithMany().HasForeignKey(f => f.UserId);
             modelBuilder.Entity<Favorite>().HasOne(f => f.Comic).WithMany().HasForeignKey(f => f.ComicId);
+
             modelBuilder.Entity<Notification>().HasOne(n => n.User).WithMany().HasForeignKey(n => n.UserId);
-            // Cấu hình Soft Delete tự động
+
+            // 2. Cấu hình Soft Delete tự động bằng Reflection
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
             {
                 if (typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
@@ -82,12 +80,13 @@ namespace Comax.Data
             }
         }
 
+        // Hàm helper cho Soft Delete
         private static void SetSoftDeleteFilter<T>(ModelBuilder modelBuilder) where T : BaseEntity
         {
             modelBuilder.Entity<T>().HasQueryFilter(x => !x.IsDeleted);
         }
 
-        // --- INTERCEPTOR: Tự động gán Slug & CreatedAt ---
+        // --- SAVE CHANGES INTERCEPTOR ---
         public override int SaveChanges()
         {
             OnBeforeSaving();
@@ -100,6 +99,7 @@ namespace Comax.Data
             return base.SaveChangesAsync(cancellationToken);
         }
 
+        // --- LOGIC XỬ LÝ TRƯỚC KHI LƯU (IN-MEMORY ONLY) ---
         private void OnBeforeSaving()
         {
             var entries = ChangeTracker.Entries();
@@ -108,58 +108,75 @@ namespace Comax.Data
                 // 1. Tự động gán CreatedAt/UpdatedAt
                 if (entry.Entity is BaseEntity baseEntity)
                 {
+                    var now = DateTime.UtcNow;
                     if (entry.State == EntityState.Added)
                     {
-                        baseEntity.CreatedAt = DateTime.UtcNow;
+                        baseEntity.CreatedAt = now;
+                        // Nếu chưa có UpdatedAt thì gán bằng CreatedAt luôn
+                        if (baseEntity.UpdatedAt == default) baseEntity.UpdatedAt = now;
                     }
                     else if (entry.State == EntityState.Modified)
                     {
-                        baseEntity.UpdatedAt = DateTime.UtcNow;
+                        baseEntity.UpdatedAt = now;
                     }
                 }
 
-                // 2. TỰ ĐỘNG SINH SLUG (COMIC, CATEGORY, CHAPTER)
+                // 2. Tự động sinh Slug (Nếu chưa có)
+                // CHÚ Ý: Logic này chỉ chạy trong RAM, không check trùng trong DB để tránh lỗi Concurrency
                 if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
                 {
-                    // Xử lý Comic
                     if (entry.Entity is Comic comic)
                     {
                         if (string.IsNullOrEmpty(comic.Slug) && !string.IsNullOrEmpty(comic.Title))
-                        {
                             comic.Slug = GenerateSlug(comic.Title);
-                        }
-                        if (string.IsNullOrEmpty(comic.Slug)) comic.Slug = $"comic-{Guid.NewGuid()}";
                     }
-                    // Xử lý Category (Thêm mới)
                     else if (entry.Entity is Category category)
                     {
                         if (string.IsNullOrEmpty(category.Slug) && !string.IsNullOrEmpty(category.Name))
-                        {
                             category.Slug = GenerateSlug(category.Name);
-                        }
-                        if (string.IsNullOrEmpty(category.Slug)) category.Slug = $"cat-{Guid.NewGuid()}";
                     }
-                    // Xử lý Chapter (Thêm mới)
                     else if (entry.Entity is Chapter chapter)
                     {
                         if (string.IsNullOrEmpty(chapter.Slug) && !string.IsNullOrEmpty(chapter.Title))
-                        {
                             chapter.Slug = GenerateSlug(chapter.Title);
-                        }
-                        if (string.IsNullOrEmpty(chapter.Slug)) chapter.Slug = $"chap-{Guid.NewGuid()}";
                     }
                 }
             }
         }
 
+        // --- HÀM TẠO SLUG (Hỗ trợ Tiếng Việt) ---
         private string GenerateSlug(string phrase)
         {
             if (string.IsNullOrEmpty(phrase)) return "";
             string str = phrase.ToLowerInvariant();
+
+            str = RemoveDiacritics(str);
+            str = Regex.Replace(str, @"đ", "d");
+
             str = Regex.Replace(str, @"[^a-z0-9\s-]", "");
+
             str = Regex.Replace(str, @"\s+", " ").Trim();
             str = Regex.Replace(str, @"\s", "-");
+
             return str;
+        }
+
+
+        private string RemoveDiacritics(string text)
+        {
+            var normalizedString = text.Normalize(NormalizationForm.FormD);
+            var stringBuilder = new StringBuilder();
+
+            foreach (var c in normalizedString)
+            {
+                var unicodeCategory = CharUnicodeInfo.GetUnicodeCategory(c);
+                if (unicodeCategory != UnicodeCategory.NonSpacingMark)
+                {
+                    stringBuilder.Append(c);
+                }
+            }
+
+            return stringBuilder.ToString().Normalize(NormalizationForm.FormC);
         }
     }
 }

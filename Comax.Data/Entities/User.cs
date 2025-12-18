@@ -10,6 +10,7 @@ namespace Comax.Data.Entities
         public string Username { get; set; }
         public string Email { get; set; }
         public string PasswordHash { get; set; }
+        public string? Avatar { get; set; }
         public int RoleId { get; set; }
         [ForeignKey("RoleId")]
         public virtual Role Role { get; set; }

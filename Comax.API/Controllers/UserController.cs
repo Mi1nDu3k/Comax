@@ -1,12 +1,12 @@
 ﻿using Comax.Business.Interfaces;
-using Comax.Business.Services;
-using Comax.Business.Services.Interfaces; 
-using Comax.Common.DTOs.Auth; 
+using Comax.Business.Services.Interfaces;
+using Comax.Common.DTOs.Auth;
 using Comax.Common.DTOs.User;
-using Comax.Shared;
+using Comax.Shared; // Giả sử chứa ErrorMessages
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Generic;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace Comax.API.Controllers
@@ -16,8 +16,7 @@ namespace Comax.API.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
-        private readonly IAuthService _authService; 
-
+        private readonly IAuthService _authService;
 
         public UserController(IUserService userService, IAuthService authService)
         {
@@ -25,36 +24,21 @@ namespace Comax.API.Controllers
             _authService = authService;
         }
 
-        /// <summary>
-        /// 1. Đăng ký
-        /// </summary>
+        // 1. Đăng ký
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDTO registerDto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-
             var result = await _userService.RegisterAsync(registerDto);
-
-            if (!result.Success)
-            {
-                return BadRequest(result);
-            }
-
+            if (!result.Success) return BadRequest(result);
             return Ok(result);
         }
 
-        /// <summary>
-        /// 2. Đăng nhập
-        /// </summary>
+        // 2. Đăng nhập
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDTO request)
         {
-            // Sử dụng _authService đã inject để login
             var token = await _authService.LoginAsync(request);
-            if (!ModelState.IsValid)
-            { 
-                return BadRequest(ModelState);
-            }
 
             if (string.IsNullOrEmpty(token))
                 return Unauthorized(new { message = "Email hoặc mật khẩu không đúng" });
@@ -69,49 +53,69 @@ namespace Comax.API.Controllers
             });
         }
 
-        /// <summary>
-        /// 3. Lấy danh sách User
-        /// </summary>
+        // 3. Lấy Profile (GET) - QUAN TRỌNG: Đã thêm HttpGet
+        [HttpGet("profile")]
+        [Authorize]
+        public async Task<IActionResult> GetProfile()
+        {
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
+
+            var userId = int.Parse(userIdString);
+            var user = await _userService.GetByIdAsync(userId);
+
+            if (user == null) return NotFound(new { message = "Không tìm thấy user" });
+
+            return Ok(user);
+        }
+
+        // 4. Cập nhật Profile (PUT) - Đã chuẩn [FromForm]
+        [HttpPut("profile")]
+        [Authorize]
+        public async Task<IActionResult> UpdateProfile([FromForm] UserUpdateDTO request)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = int.Parse(userIdString);
+
+            var result = await _userService.UpdateProfileAsync(userId, request);
+
+            if (!result.Success) return BadRequest(result);
+
+            return Ok(result);
+        }
+
+        // 5. Lấy danh sách User (Admin)
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<UserDTO>>> GetAll()
         {
             var users = await _userService.GetAllAsync();
             return Ok(users);
         }
 
-        /// <summary>
-        /// 4. Nâng cấp VIP
-        /// </summary>
+        // 6. Nâng cấp VIP
         [HttpPost("{id}/upgrade-vip")]
         [Authorize]
         public async Task<IActionResult> UpgradeToVip(int id)
         {
             var result = await _userService.UpgradeToVipAsync(id);
-
-            if (!result)
-                return NotFound(new { message = ErrorMessages.Auth.UserNotFound });
-
+            if (!result) return NotFound(new { message = ErrorMessages.Auth.UserNotFound });
             return Ok(new { message = ErrorMessages.Auth.VIPUpgradedSuccess });
         }
 
-        /// <summary>
-        /// 5. Hạ cấp VIP (Admin only)
-        /// </summary>
+        // 7. Hạ cấp VIP
         [HttpPost("{id}/downgrade-vip")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DowngradeVip(int id)
         {
             var result = await _userService.DowngradeFromVipAsync(id);
-
-            if (!result)
-                return NotFound(new { message = ErrorMessages.Auth.UserNotFound });
-
+            if (!result) return NotFound(new { message = ErrorMessages.Auth.UserNotFound });
             return Ok(new { message = ErrorMessages.Auth.VIPDowngradedSuccess });
         }
 
-        /// <summary>
-        /// 6. Danh sách VIP (Admin only)
-        /// </summary>
+        // 8. Danh sách VIP
         [HttpGet("vip-list")]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<List<UserDTO>>> GetVipUsers()
@@ -120,31 +124,29 @@ namespace Comax.API.Controllers
             return Ok(users);
         }
 
+        // 9. Ban User
         [HttpPost("{id}/ban")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> BanUser(int id)
         {
             var result = await _userService.BanUserAsync(id);
             if (!result) return NotFound(new { message = ErrorMessages.Auth.UserNotFound });
-
             return Ok(new { message = ErrorMessages.Auth.Banned });
         }
 
+        // 10. Unban User
         [HttpPost("{id}/unban")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UnbanUser(int id)
         {
             var result = await _userService.UnbanUserAsync(id);
             if (!result) return NotFound(new { message = ErrorMessages.Auth.UserNotFound });
-
             return Ok(new { message = ErrorMessages.Auth.Unbanned });
         }
 
-        /// <summary>
-        /// 7. Xóa User
-        /// </summary>
+        // 11. Xóa User
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")] // Nên thêm quyền Admin cho hành động xóa
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(int id, [FromQuery] bool hardDelete = false)
         {
             var result = await _userService.DeleteAsync(id, hardDelete);

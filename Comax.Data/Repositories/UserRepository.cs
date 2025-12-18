@@ -21,9 +21,11 @@ public class UserRepository : BaseRepository<User>, IUserRepository
         return await _dbSet.ToListAsync();
     }
 
-    public async Task<User?> GetByIdAsync(int id)
+    public override async Task<User?> GetByIdAsync(int id)
     {
-        return await _dbSet.FindAsync(id);
+        return await _dbSet
+            .Include(u => u.Role) 
+            .FirstOrDefaultAsync(u => u.Id == id);
     }
 
     public async Task<User> AddAsync(User entity)

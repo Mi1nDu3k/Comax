@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Comax.Business.Interfaces;
 using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs;
 using Comax.Common.DTOs.Auth;
@@ -6,21 +7,23 @@ using Comax.Common.DTOs.User;
 using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
 using Comax.Shared;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Collections.Generic;
 
 namespace Comax.Business.Services
 {
     public class UserService : IUserService
+
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
-
-        public UserService(IUnitOfWork unitOfWork, IMapper mapper)
+        private readonly IStorageService _storageService;
+        public UserService(IUnitOfWork unitOfWork, IMapper mapper, IStorageService storageService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _storageService = storageService;
         }
 
         public async Task<UserDTO> GetByEmailAsync(string email)
@@ -41,9 +44,6 @@ namespace Comax.Business.Services
             var user = _mapper.Map<User>(registerDto);
             user.PasswordHash = registerDto.Password;
 
-            // 👇 SỬA QUAN TRỌNG: Gán RoleId (int) thay vì Role (Entity)
-            // Ép kiểu Enum sang int (Ví dụ: User = 1)
-            // Lưu ý: Đảm bảo ID trong Database khớp với số thứ tự Enum
             user.RoleId = (int)Comax.Common.Enums.Role.User;
 
             user.IsVip = false;
@@ -68,7 +68,6 @@ namespace Comax.Business.Services
 
             user.IsVip = true;
 
-            // 👇 SỬA: Thêm await
             await _unitOfWork.Users.UpdateAsync(user);
             await _unitOfWork.CommitAsync();
             return true;
@@ -81,7 +80,7 @@ namespace Comax.Business.Services
 
             user.IsVip = false;
 
-            // 👇 SỬA: Thêm await
+
             await _unitOfWork.Users.UpdateAsync(user);
             await _unitOfWork.CommitAsync();
             return true;
@@ -99,9 +98,7 @@ namespace Comax.Business.Services
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null) return false;
 
-            // user.IsBanned = true; // Mở comment này nếu bạn đã có trường IsBanned trong Entity
 
-            // 👇 SỬA: Thêm await
             await _unitOfWork.Users.UpdateAsync(user);
             await _unitOfWork.CommitAsync();
             return true;
@@ -112,9 +109,7 @@ namespace Comax.Business.Services
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null) return false;
 
-            // user.IsBanned = false; 
 
-            // 👇 SỬA: Thêm await
             await _unitOfWork.Users.UpdateAsync(user);
             await _unitOfWork.CommitAsync();
             return true;
@@ -123,6 +118,34 @@ namespace Comax.Business.Services
         public async Task<bool> DeleteAsync(int id, bool hardDelete)
         {
             return await _unitOfWork.Users.DeleteAsync(id, hardDelete);
+        }
+
+        public async Task<UserDTO> GetByIdAsync(int id)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(id);
+            if (user == null) return null;
+            return _mapper.Map<UserDTO>(user);
+        }
+
+        public async Task<ServiceResponse<UserDTO>> UpdateProfileAsync(int userId, UserUpdateDTO request)
+        {
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+            if (user == null) return ServiceResponse<UserDTO>.Error("User not found");
+            _mapper.Map(request, user);
+            if (request.AvatarFile != null)
+            {
+                if (!string.IsNullOrEmpty(user.Avatar) && !user.Avatar.Contains("http"))
+                {
+                }
+                var avatarUrl = await _storageService.UploadFileAsync(request.AvatarFile, "avatars");
+                user.Avatar = avatarUrl;
+            }
+
+            _unitOfWork.Users.UpdateAsync(user);
+            await _unitOfWork.CommitAsync();
+
+            // 5. Trả về kết quả (User đã có Avatar mới)
+            return ServiceResponse<UserDTO>.Ok(_mapper.Map<UserDTO>(user));
         }
     }
 }

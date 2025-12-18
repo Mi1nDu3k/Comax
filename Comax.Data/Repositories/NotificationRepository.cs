@@ -11,19 +11,26 @@ namespace Comax.Data.Repositories
     {
         public NotificationRepository(ComaxDbContext context) : base(context) { }
 
-        public async Task<List<Notification>> GetByUserAsync(int userId)
+
+        public async Task<List<Notification>> GetByUserIdAsync(int userId)
         {
             return await _dbSet
-                .Where(n => n.UserId == userId)
+                .Where(n => n.UserId == userId && !n.IsDeleted)
                 .OrderByDescending(n => n.CreatedAt)
-                .Take(20)
+                .Take(50) 
                 .ToListAsync();
         }
 
         public async Task MarkAllAsReadAsync(int userId)
         {
+
             var unread = await _dbSet.Where(n => n.UserId == userId && !n.IsRead).ToListAsync();
-            foreach (var n in unread) n.IsRead = true;
+            foreach (var n in unread)
+            {
+                n.IsRead = true;
+
+            }
+       
         }
     }
 }

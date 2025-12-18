@@ -5,6 +5,7 @@ using Comax.Common.DTOs.Category;
 using Comax.Common.DTOs.Chapter;
 using Comax.Common.DTOs.Comic;
 using Comax.Common.DTOs.Comment;
+using Comax.Common.DTOs.Notification;
 using Comax.Common.DTOs.Page;
 using Comax.Common.DTOs.Rating;
 using Comax.Common.DTOs.User;
@@ -68,9 +69,13 @@ namespace Comax.Mapping
             // User
             CreateMap<User, UserDTO>();
             CreateMap<UserCreateDTO, User>();
-            CreateMap<UserUpdateDTO, User>();
-        //rating and comment mappings can be added here when needed
-                CreateMap<Rating,RatingCreateDTO>();
+            CreateMap<UserUpdateDTO, User>()
+     .ForMember(dest => dest.Id, opt => opt.Ignore()) 
+     .ForMember(dest => dest.Role, opt => opt.Ignore()) 
+     .ForMember(dest => dest.PasswordHash, opt => opt.Ignore()) 
+     .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null)); 
+                                                                                          
+            CreateMap<Rating,RatingCreateDTO>();
                 CreateMap<Rating,RatingUpdateDTO>();
             
             
@@ -78,7 +83,7 @@ namespace Comax.Mapping
    .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User.Username)); // Map tên user
             CreateMap<CommentCreateDTO, Comment>();
             CreateMap<CommentUpdateDTO, Comment>();
-
+            CreateMap<Notification, NotificationDTO>().ReverseMap();
 
 
 

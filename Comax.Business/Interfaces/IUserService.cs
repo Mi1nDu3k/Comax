@@ -11,6 +11,8 @@ namespace Comax.Business.Services.Interfaces
         Task<IEnumerable<UserDTO>> GetAllAsync();
 
         Task<UserDTO> GetByEmailAsync(string email);
+        // Đảm bảo Interface có dòng này
+        Task<UserDTO> GetByIdAsync(int id);
 
         //Task<UserDTO> RegisterAsync(RegisterDTO registerDto);
         Task<ServiceResponse<UserDTO>> RegisterAsync(RegisterDTO registerDto);
@@ -20,5 +22,7 @@ namespace Comax.Business.Services.Interfaces
         Task<bool> BanUserAsync(int userId);
         Task<bool> UnbanUserAsync(int userId);
         Task<bool> DeleteAsync(int id, bool hardDelete);
+   
+        Task<ServiceResponse<UserDTO>> UpdateProfileAsync(int userId, UserUpdateDTO request);
     }
 }

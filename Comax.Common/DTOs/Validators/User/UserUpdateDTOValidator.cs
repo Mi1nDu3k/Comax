@@ -7,13 +7,13 @@ namespace Comax.Common.DTOs.Validators.User
     {
         public UserUpdateDTOValidator()
         {
-            RuleFor(x => x.Username)
-                .NotEmpty()
-                .MinimumLength(3);
+            //RuleFor(x => x.Username)
+            //    .NotEmpty()
+            //    .MinimumLength(3);
 
-            RuleFor(x => x.Email)
-                .NotEmpty()
-                .EmailAddress();
+            //RuleFor(x => x.Email)
+            //    .NotEmpty()
+            //    .EmailAddress();
         }
     }
 }

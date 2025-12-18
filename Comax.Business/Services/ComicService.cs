@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Comax.Business.Interfaces;
-using Comax.Business.Services.Interfaces; // Sửa namespace Interfaces nếu cần
+using Comax.Business.Services.Interfaces;
+using Comax.Common.DTOs;
 using Comax.Common.DTOs.Comic;
 using Comax.Common.Helpers;
 using Comax.Data.Entities;
@@ -152,7 +153,7 @@ namespace Comax.Business.Services
             return _mapper.Map<ComicDTO>(entity);
         }
 
-        // 4. UPDATE (FIXED 500 ERROR)
+        // 4. UPDATE (ĐÃ TỐI ƯU - KHÔNG GỌI LẠI DB)
         public override async Task<ComicDTO> UpdateAsync(int id, ComicUpdateDTO dto)
         {
             // 1. Lấy Entity từ DB (Tracked)
@@ -204,23 +205,18 @@ namespace Comax.Business.Services
 
             // 5. Cập nhật RowVersion thủ công
             entity.RowVersion = Guid.NewGuid();
-
-            // [QUAN TRỌNG] Chỉ gọi Commit, KHÔNG gọi UpdateAsync(entity) để tránh lỗi Graph
             await _unitOfWork.CommitAsync();
-
-            // 6. Refresh data
-            var refreshedEntity = await _comicRepo.GetByIdAsync(id);
-
-            // 7. Xóa Cache
+            // 6. Xóa Cache (Dùng biến entity để lấy Slug mới nhất)
             await _distCache.RemoveAsync($"comic_id_{id}");
-            if (oldSlug != refreshedEntity.Slug)
+
+            if (oldSlug != entity.Slug)
             {
                 _memoryCache.Remove($"comic_slug_{oldSlug}");
             }
-            _memoryCache.Remove($"comic_slug_{refreshedEntity.Slug}");
+            _memoryCache.Remove($"comic_slug_{entity.Slug}");
 
-            // 8. Trả về
-            return _mapper.Map<ComicDTO>(refreshedEntity);
+            // 7. Trả về
+            return _mapper.Map<ComicDTO>(entity);
         }
 
         // 5. SEARCH
