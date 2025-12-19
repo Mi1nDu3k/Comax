@@ -1,43 +1,54 @@
-﻿using Comax.Business.Interfaces;
-using Comax.Common.DTOs;
-using Comax.Common.DTOs.Rating;
+﻿using Comax.Common.DTOs.Rating; // Sửa lỗi RatingRequest
+using Comax.Data.Entities;    // Sửa lỗi Rating entity
+using Comax.Data.Repositories.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
+using System.Security.Claims; // Sửa lỗi ClaimTypes
 
-[ApiController]
-[Route("api/[controller]")]
-public class RatingsController : ControllerBase
+namespace Comax.API.Controllers
 {
-    private readonly IRatingService _service;
-    public RatingsController(IRatingService service) { _service = service; }
-
-    [HttpGet("{comicId}")]
-    public async Task<IActionResult> GetByComic(int comicId)
+    [Authorize]
+    [ApiController]
+    [Route("api/[controller]")]
+    public class RatingController : ControllerBase
     {
-        var ratings = await _service.GetByComicAsync(comicId);
-        return Ok(ratings);
-    }
+        private readonly IUnitOfWork _unitOfWork;
+        // Sử dụng Repo thông qua UnitOfWork hoặc inject trực tiếp
 
-    [HttpPost]
-    public async Task<IActionResult> Create([FromBody] RatingCreateDTO dto)
-    {
-        var rating = await _service.CreateAsync(dto);
-        return Ok(rating);
-    }
+        public RatingController(IUnitOfWork unitOfWork)
+        {
+            _unitOfWork = unitOfWork;
+        }
 
-    [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, [FromBody] RatingUpdateDTO dto)
-    {
-        var rating = await _service.UpdateAsync(id, dto);
-        if (rating == null) return NotFound();
-        return Ok(rating);
-    }
+        [HttpPost]
+        public async Task<IActionResult> Rate([FromBody] RatingRequest request)
+        {
+            // Lấy UserId từ Token
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null) return Unauthorized();
+            int userId = int.Parse(userIdClaim.Value);
 
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id, [FromQuery] bool hardDelete = false)
-    {
-        var result = await _service.DeleteAsync(id, hardDelete);
-        if (!result) return NotFound();
-        return NoContent();
+            // Truy cập Repo thông qua UnitOfWork (Ví dụ: _unitOfWork.Ratings)
+            var existingRating = await _unitOfWork.Ratings.GetAsync(r =>
+                r.ComicId == request.ComicId && r.UserId == userId);
+
+            if (existingRating != null)
+            {
+                existingRating.Score = request.Score;
+                _unitOfWork.Ratings.Update(existingRating);
+            }
+            else
+            {
+                await _unitOfWork.Ratings.AddAsync(new Rating
+                {
+                    ComicId = request.ComicId,
+                    UserId = userId,
+                    Score = request.Score
+                });
+            }
+
+            await _unitOfWork.CommitAsync();
+            return Ok(new { message = "Đánh giá thành công!" });
+        }
     }
 }

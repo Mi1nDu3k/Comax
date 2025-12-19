@@ -24,7 +24,7 @@ namespace Comax.Business.Services
             _mapper = mapper;
         }
         // THÊM: Implementation phân trang
-        public async Task<PagedList<TDto>> GetAllPagedAsync(PaginationParams @params)
+        public virtual async Task<PagedList<TDto>> GetAllPagedAsync(PaginationParams @params)
         {
             var (entities, totalCount) = await _repo.GetAllPagedAsync(@params.PageNumber, @params.PageSize);
 

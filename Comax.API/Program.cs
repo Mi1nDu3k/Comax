@@ -1,27 +1,14 @@
-﻿using Comax.API.Extensions; 
+﻿using Comax.API.Extensions;
 using Comax.Data;
 using Microsoft.AspNetCore.Http.Features;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
-using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddControllers()
-    .AddJsonOptions(options =>
-    {
-        
-        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
-        options.JsonSerializerOptions.WriteIndented = true;
-    });
 
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = builder.Configuration.GetConnectionString("RedisConnection") ?? "localhost:6379";
-    options.InstanceName = "Comax_"; 
-});
+// 1. Cấu hình Kestrel & Form Size (Upload ảnh lớn)
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = 524288000;
+    options.Limits.MaxRequestBodySize = 524288000; // 500MB
 });
 builder.Services.Configure<FormOptions>(options =>
 {
@@ -30,23 +17,25 @@ builder.Services.Configure<FormOptions>(options =>
     options.MemoryBufferThreshold = int.MaxValue;
 });
 
+// 2. Cấu hình CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowNextApp",
-        policy =>
-        {
-            policy.WithOrigins("http://localhost:3000") 
-                  .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .AllowCredentials(); 
-        });
+    options.AddPolicy("AllowNextApp", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
 });
 
+// 3. GỌI TẤT CẢ SERVICE TỪ EXTENSION (Redis, DB, Controllers, Swagger nằm hết ở đây)
 builder.Services.AddProjectServices(builder.Configuration);
 
 var app = builder.Build();
 
-//--- MIDDLEWARE PIPELINE --
+// --- PIPELINE ---
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -56,14 +45,12 @@ if (app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseCors("AllowNextApp");
 
-//app.UseHttpsRedirection();
-
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapHub<Comax.Business.Hubs.NotificationHub>("/hubs/notification");
-// Seed Data
+app.MapHub<Comax.API.Hubs.NotificationHub>("/hubs/notification");
+
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ComaxDbContext>();

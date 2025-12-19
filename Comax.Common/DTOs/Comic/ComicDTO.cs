@@ -16,5 +16,11 @@ namespace Comax.Common.DTOs.Comic
         public string AuthorName { get; set; }
 
         public List<int> CategoryIds { get; set; }
+        public int? LatestChapterNumber { get; set; }
+        public DateTime? LatestChapterDate { get; set; }
+        public double Rating { get; set; }
+        public DateTime CreatedAt { get; set; } 
+        public List<string> CategoryNames { get; set; } = new();
+
     }
 }

@@ -96,7 +96,30 @@ namespace Comax.Business.Services
 
             return _mapper.Map<ChapterDTO>(entity);
         }
+        private async Task PrepareNotificationsAsync(Chapter chapter, int comicId)
+        {
+            // Lấy danh sách ID người dùng đã theo dõi truyện này
+            var userIds = await _unitOfWork.Favorites.GetUserIdsByComicIdAsync(comicId);
+            var comic = await _comicRepo.GetByIdAsync(comicId);
 
+            if (userIds.Any() && comic != null)
+            {
+                foreach (var uid in userIds)
+                {
+                    var noti = new Notification
+                    {
+                        UserId = uid,
+                        Message = $"Truyện '{comic.Title}' vừa có chương mới: {chapter.Title}",
+                        Url = $"/comic/{comic.Slug}/chapter/{chapter.Slug}",
+                        IsRead = false,
+                        CreatedAt = DateTime.UtcNow
+                    };
+
+                    // QUAN TRỌNG: Chỉ thêm vào Repo, KHÔNG gọi CommitAsync ở đây
+                    await _unitOfWork.Notifications.AddAsync(noti);
+                }
+            }
+        }
         public override async Task<ChapterDTO> UpdateAsync(int id, ChapterUpdateDTO dto)
         {
             var result = await base.UpdateAsync(id, dto);
@@ -117,33 +140,33 @@ namespace Comax.Business.Services
         // --- HÀM TẠO CHƯƠNG KÈM ẢNH (QUAN TRỌNG ĐÃ SỬA) ---
         public async Task<ChapterDTO> CreateWithImagesAsync(ChapterCreateWithImagesDTO dto)
         {
-            // A. Chuẩn bị dữ liệu
-            string finalTitle = !string.IsNullOrEmpty(dto.Title)
-                                ? dto.Title
-                                : $"Chapter {dto.ChapterNumber}";
-
+            // A. Chuẩn bị dữ liệu và kiểm tra (Giữ nguyên logic cũ)
+            string finalTitle = !string.IsNullOrEmpty(dto.Title) ? dto.Title : $"Chapter {dto.ChapterNumber}";
             string slug = SlugHelper.GenerateSlug(finalTitle);
 
-            // B. Kiểm tra trùng lặp
             var existingChapter = await _chapterRepo.GetByComicIdAndSlugAsync(dto.ComicId, slug);
             if (existingChapter != null)
             {
                 throw new Exception($"Chương '{finalTitle}' (Slug: {slug}) đã tồn tại!");
             }
 
-            // C. Upload ảnh lên MinIO (SỬA LẠI ĐOẠN NÀY)
+            // B. TẢI ẢNH SONG SONG (Đây là phần thay đổi quan trọng)
             List<string> uploadedUrls = new List<string>();
             if (dto.Images != null && dto.Images.Count > 0)
             {
-                foreach (var img in dto.Images)
-                {
-                    // Upload từng ảnh một vào folder "comics-bucket"
-                    var url = await _storageService.UploadFileAsync(img, "comics-bucket");
-                    uploadedUrls.Add(url);
-                }
+                // 1. Khởi tạo danh sách các Task (chưa chạy await ngay)
+                var uploadTasks = dto.Images.Select(img =>
+                    _storageService.UploadFileAsync(img, "comics-bucket")
+                ).ToList();
+
+                // 2. Kích hoạt tất cả Task cùng lúc và đợi toàn bộ hoàn thành
+                string[] results = await Task.WhenAll(uploadTasks);
+
+                // 3. Gom tất cả URL trả về
+                uploadedUrls.AddRange(results);
             }
 
-            // D. Tạo Entity Chapter
+            // C. Tạo Entity Chapter và Pages
             var newChapter = new Chapter
             {
                 ComicId = dto.ComicId,
@@ -153,31 +176,28 @@ namespace Comax.Business.Services
                 Slug = slug,
                 PublishDate = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow,
-                IsDeleted = false,
                 Pages = new List<Page>()
             };
 
-            // E. Tạo các Entity Page từ URL ảnh
-            int pageIndex = 0;
-            foreach (var url in uploadedUrls)
+            // Tạo các trang dựa trên thứ tự URL đã upload
+            for (int i = 0; i < uploadedUrls.Count; i++)
             {
-                var newPage = new Page
+                newChapter.Pages.Add(new Page
                 {
-                    ImageUrl = url,
-                    Index = pageIndex,
-                    FileName = Path.GetFileName(url) // Lấy tên file từ URL để lưu
-                };
-
-                newChapter.Pages.Add(newPage);
-                pageIndex++;
+                    ImageUrl = uploadedUrls[i],
+                    Index = i,
+                    FileName = Path.GetFileName(uploadedUrls[i])
+                });
             }
 
-            // F. Lưu vào Database
+            // D. Lưu vào Database và gửi thông báo trong 1 Transaction duy nhất
             await _chapterRepo.AddAsync(newChapter);
-            await _unitOfWork.CommitAsync();
 
-            // G. Gửi thông báo
-            await SendNotificationsAsync(dto.ComicId, newChapter.Title, newChapter.Slug);
+            // Tối ưu: Thêm thông báo vào cùng UnitOfWork trước khi Commit
+            await PrepareNotificationsAsync(newChapter, dto.ComicId);
+
+            // Lưu tất cả (Chapter, Pages, Notifications) chỉ với 1 lần gọi DB
+            await _unitOfWork.CommitAsync();
 
             return _mapper.Map<ChapterDTO>(newChapter);
         }

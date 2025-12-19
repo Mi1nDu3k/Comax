@@ -1,4 +1,5 @@
-﻿using Comax.Data.Entities;
+﻿using Comax.Common.DTOs.Pagination;
+using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,6 +47,33 @@ namespace Comax.Data.Repositories
             return await _dbSet
                 .Where(c => c.ComicCategories.Any(cc => cc.CategoryId == categoryId))
                 .ToListAsync();
+        }
+        public async Task<PagedList<Comic>> GetLatestUpdatedComicsAsync(PaginationParams param)
+        {
+            var query = _context.Comics
+                .Include(c => c.Author)
+                .Include(c => c.Chapters)
+                .Include(c => c.ComicCategories)
+                .ThenInclude(cc => cc.Category)
+                .Where(c => !c.IsDeleted)
+                
+                .OrderByDescending(c => c.Chapters.Max(ch => (DateTime?)ch.PublishDate) ?? c.CreatedAt);
+
+            var count = await query.CountAsync();
+            var items = await query
+                .Skip((param.PageNumber - 1) * param.PageSize)
+                .Take(param.PageSize)
+                .ToListAsync();
+
+            return new PagedList<Comic>(items, count, param.PageNumber, param.PageSize);
+        }
+        public async Task<Comic?> GetByIdWithDetailsAsync(int id)
+        {
+            return await _context.Comics
+                .Include(c => c.Author)
+                .Include(c => c.ComicCategories)
+                    .ThenInclude(cc => cc.Category) // Lấy thông tin Category để lấy Name
+                .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
         }
     }
 }

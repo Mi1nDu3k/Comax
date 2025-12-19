@@ -3,6 +3,7 @@ using Comax.Business.Interfaces;
 using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs;
 using Comax.Common.DTOs.Comic;
+using Comax.Common.DTOs.Pagination;
 using Comax.Common.Helpers;
 using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
@@ -238,6 +239,19 @@ namespace Comax.Business.Services
                 await _comicRepo.UpdateAsync(comic);
                 await _unitOfWork.CommitAsync();
             }
+        }
+
+        public override async Task<PagedList<ComicDTO>> GetAllPagedAsync(PaginationParams param)
+        {
+            var pagedEntities = await _comicRepo.GetLatestUpdatedComicsAsync(param);
+
+            var dtos = _mapper.Map<IEnumerable<ComicDTO>>(pagedEntities.Items);
+
+            return new PagedList<ComicDTO>(
+                dtos,
+                pagedEntities.TotalCount,
+                pagedEntities.CurrentPage,
+                pagedEntities.PageSize);
         }
     }
 }

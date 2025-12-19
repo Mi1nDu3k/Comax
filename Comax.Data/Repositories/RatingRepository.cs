@@ -1,5 +1,5 @@
 ﻿using Comax.Data.Entities;
-using Comax.Data.Repositories.Interfaces;
+using Comax.Data.Repositories.Interfaces; // Đảm bảo đúng namespace
 using Microsoft.EntityFrameworkCore;
 
 namespace Comax.Data.Repositories
@@ -10,20 +10,17 @@ namespace Comax.Data.Repositories
 
         public async Task<List<Rating>> GetByComicAsync(int comicId)
         {
-            return await _context.Ratings
+            return await _dbSet
                 .Where(r => r.ComicId == comicId)
+                .Include(r => r.User) // Để hiển thị tên người vote nếu cần
                 .ToListAsync();
         }
-
 
         public async Task<double> GetAverageScoreAsync(int comicId)
         {
-            var ratings = await _context.Ratings
-                .Where(r => r.ComicId == comicId)
-                .ToListAsync();
-            return ratings.Any() ? ratings.Average(r => r.Score) : 0;
+            var ratings = _dbSet.Where(r => r.ComicId == comicId);
+            if (!await ratings.AnyAsync()) return 0;
+            return await ratings.AverageAsync(r => r.Score);
         }
     }
-
-    
 }

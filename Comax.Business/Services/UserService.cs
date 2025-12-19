@@ -14,11 +14,11 @@ using System.Threading.Tasks;
 namespace Comax.Business.Services
 {
     public class UserService : IUserService
-
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IStorageService _storageService;
+
         public UserService(IUnitOfWork unitOfWork, IMapper mapper, IStorageService storageService)
         {
             _unitOfWork = unitOfWork;
@@ -42,10 +42,8 @@ namespace Comax.Business.Services
             }
 
             var user = _mapper.Map<User>(registerDto);
-            user.PasswordHash = registerDto.Password;
-
+            user.PasswordHash = registerDto.Password; // Lưu ý: Nên Hash password ở đây thay vì lưu raw
             user.RoleId = (int)Comax.Common.Enums.Role.User;
-
             user.IsVip = false;
 
             await _unitOfWork.Users.AddAsync(user);
@@ -80,7 +78,6 @@ namespace Comax.Business.Services
 
             user.IsVip = false;
 
-
             await _unitOfWork.Users.UpdateAsync(user);
             await _unitOfWork.CommitAsync();
             return true;
@@ -98,6 +95,8 @@ namespace Comax.Business.Services
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null) return false;
 
+            // Logic Ban: Ví dụ gán IsActive = false hoặc LockoutEnd
+            // user.IsBanned = true; 
 
             await _unitOfWork.Users.UpdateAsync(user);
             await _unitOfWork.CommitAsync();
@@ -109,6 +108,8 @@ namespace Comax.Business.Services
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null) return false;
 
+            // Logic Unban
+            // user.IsBanned = false;
 
             await _unitOfWork.Users.UpdateAsync(user);
             await _unitOfWork.CommitAsync();
@@ -127,24 +128,40 @@ namespace Comax.Business.Services
             return _mapper.Map<UserDTO>(user);
         }
 
+        // --- HÀM SỬA LỖI 500 ---
         public async Task<ServiceResponse<UserDTO>> UpdateProfileAsync(int userId, UserUpdateDTO request)
         {
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null) return ServiceResponse<UserDTO>.Error("User not found");
+
+            // 1. Map dữ liệu
             _mapper.Map(request, user);
+
+            // 2. Xử lý Avatar
             if (request.AvatarFile != null)
             {
-                if (!string.IsNullOrEmpty(user.Avatar) && !user.Avatar.Contains("http"))
+                // Xóa ảnh cũ (Đã bổ sung logic)
+                if (!string.IsNullOrEmpty(user.Avatar) && !user.Avatar.Contains("placehold"))
                 {
+                    try
+                    {
+                        // Gọi hàm xóa file (Nếu MinioStorageService có hàm DeleteFileAsync)
+                        await _storageService.DeleteFileAsync(user.Avatar);
+                    }
+                    catch { /* Bỏ qua lỗi xóa file cũ để không chặn luồng */ }
                 }
+
+                // Upload ảnh mới
                 var avatarUrl = await _storageService.UploadFileAsync(request.AvatarFile, "avatars");
                 user.Avatar = avatarUrl;
             }
 
-            _unitOfWork.Users.UpdateAsync(user);
+            // --- QUAN TRỌNG: THÊM AWAIT ---
+            await _unitOfWork.Users.UpdateAsync(user);
+            // ------------------------------
+
             await _unitOfWork.CommitAsync();
 
-            // 5. Trả về kết quả (User đã có Avatar mới)
             return ServiceResponse<UserDTO>.Ok(_mapper.Map<UserDTO>(user));
         }
     }

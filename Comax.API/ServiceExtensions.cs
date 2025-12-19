@@ -23,28 +23,26 @@ namespace Comax.API.Extensions
     {
         public static void AddProjectServices(this IServiceCollection services, IConfiguration configuration)
         {
-            // 1. QUAN TRỌNG: Đăng ký SignalR (Thêm dòng này để sửa lỗi)
-            services.AddSignalR();
-
-            // 2. Add DbContext
+            // 1. Database
+            var connectionString = configuration.GetConnectionString("DefaultConnection");
             services.AddDbContext<ComaxDbContext>(options =>
-                options.UseMySql(
-                    configuration.GetConnectionString("DefaultConnection"),
-                    ServerVersion.AutoDetect(configuration.GetConnectionString("DefaultConnection"))
-                )
+                options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString))
             );
 
-            // Các Worker và Service cơ bản
-            services.AddSingleton<IViewCountBuffer, ViewCountBuffer>();
-            services.AddHostedService<ViewCountWorker>();
+            // 2. Redis Cache (Chuyển từ Program.cs sang đây)
+            services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = configuration.GetConnectionString("RedisConnection") ?? "localhost:6379";
+                options.InstanceName = "Comax_";
+            });
+            // Thêm Distributed Memory Cache phòng hờ nếu Redis chết hoặc chưa cài
+            // services.AddDistributedMemoryCache(); 
 
-            // Storage Service
-            services.AddScoped<IStorageService, MinioStorageService>();
+            // 3. SignalR
+            services.AddSignalR();
 
-            // 3. Add AutoMapper
-            services.AddAutoMapper(typeof(MappingProfile));
-
-            // 4. Add Repositories
+            // 4. Repositories (SCOPED - Quan trọng)
+            services.AddScoped<IUnitOfWork, UnitOfWork>(); // <--- Fix lỗi concurrency
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<IComicRepository, ComicRepository>();
@@ -54,11 +52,10 @@ namespace Comax.API.Extensions
             services.AddScoped<IRatingRepository, RatingRepository>();
             services.AddScoped<ICommentRepository, CommentRepository>();
             services.AddScoped<IReportRepository, ReportRepository>();
-            services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<IFavoriteRepository, FavoriteRepository>();
             services.AddScoped<INotificationRepository, NotificationRepository>();
 
-            // 5. Add Services
+            // 5. Services (SCOPED)
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IComicService, ComicService>();
@@ -70,16 +67,26 @@ namespace Comax.API.Extensions
             services.AddScoped<IReportService, ReportService>();
             services.AddScoped<IFavoriteService, FavoriteService>();
             services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IStorageService, MinioStorageService>();
 
-            // 6. Controllers + FluentValidation
-            services.AddControllers()
-                .AddJsonOptions(x => x.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
+            // 6. Workers (Singleton)
+            services.AddSingleton<IViewCountBuffer, ViewCountBuffer>();
+            services.AddHostedService<ViewCountWorker>();
 
-            services.AddFluentValidationAutoValidation()
-                    .AddFluentValidationClientsideAdapters();
+            // 7. AutoMapper & Validators
+            services.AddAutoMapper(typeof(MappingProfile));
+            services.AddFluentValidationAutoValidation().AddFluentValidationClientsideAdapters();
             services.AddValidatorsFromAssemblyContaining<Comax.Common.DTOs.BaseDto>();
 
-            // 7. Swagger, JWT, Auth... (Giữ nguyên như cũ)
+            // 8. Controllers & JSON Config (Gộp vào đây)
+            services.AddControllers()
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+                    options.JsonSerializerOptions.WriteIndented = true;
+                });
+
+            // 9. Auth & Swagger
             services.AddEndpointsApiExplorer();
             services.AddSwaggerGen(options =>
             {
@@ -91,18 +98,14 @@ namespace Comax.API.Extensions
                     Scheme = "Bearer",
                     BearerFormat = "JWT",
                     In = ParameterLocation.Header,
-                    Description = "Nhập token vào đây. Ví dụ: Bearer {token}"
+                    Description = "Nhập token: Bearer {token}"
                 });
                 options.AddSecurityRequirement(new OpenApiSecurityRequirement
                 {
                     {
                         new OpenApiSecurityScheme
                         {
-                            Reference = new OpenApiReference
-                            {
-                                Type = ReferenceType.SecurityScheme,
-                                Id = "Bearer"
-                            }
+                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
                         },
                         new string[] {}
                     }
@@ -110,34 +113,36 @@ namespace Comax.API.Extensions
             });
 
             services.AddScoped<IJwtHelper, JwtHelper>();
-
             var jwtSettings = configuration.GetSection("Jwt");
-            var secretKey = jwtSettings["SecretKey"];
-
-            services.AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
-            .AddJwtBearer(options =>
-            {
-                options.TokenValidationParameters = new TokenValidationParameters
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(options =>
                 {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = jwtSettings["Issuer"],
-                    ValidAudience = jwtSettings["Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
-                };
-            });
+                    options.TokenValidationParameters = new TokenValidationParameters
+                    {
+                        ValidateIssuer = true,
+                        ValidateAudience = true,
+                        ValidateIssuerSigningKey = true,
+                        ValidIssuer = jwtSettings["Issuer"],
+                        ValidAudience = jwtSettings["Audience"],
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]))
+                    };
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnMessageReceived = context =>
+                        {
+                            var accessToken = context.Request.Query["access_token"]; // Lấy token từ URL
+                            var path = context.HttpContext.Request.Path;
+                            if (!string.IsNullOrEmpty(accessToken) &&
+                             path.StartsWithSegments("/hubs/notification")) 
+                            {
+                                context.Token = accessToken;
+                            }
+                            return Task.CompletedTask;
+                        }
+                    };
+                });
 
             services.AddMemoryCache();
-            services.AddStackExchangeRedisCache(options =>
-            {
-                options.Configuration = configuration.GetConnectionString("RedisConnection") ?? "localhost:6379";
-                options.InstanceName = "Comax_";
-            });
             services.AddAuthorization();
         }
     }

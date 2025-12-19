@@ -32,7 +32,6 @@ namespace Comax.Data.Repositories
         public IChapterRepository Chapters => _chapters ??= new ChapterRepository(_context);
         public ICommentRepository Comments => _comments ??= new CommentRepository(_context);
         public IRatingRepository Ratings => _ratings ??= new RatingRepository(_context);
-
         public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_context);
         public IFavoriteRepository Favorites => _favorites ??= new FavoriteRepository(_context);
 
