@@ -25,5 +25,6 @@ namespace Comax.Data.Entities
 
         public ICollection<Chapter> Chapters { get; set; }
         public ICollection<ComicCategory> ComicCategories { get; set; }
+        public virtual ICollection<Rating> Ratings { get; set; } = new List<Rating>();
     }
 }

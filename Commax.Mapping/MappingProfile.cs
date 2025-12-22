@@ -15,11 +15,13 @@ namespace Comax.Mapping
 {
     public class MappingProfile : Profile
     {
+        string baseUrl = "http://localhost:9000/comics-bucket";
         public MappingProfile()
         {
             // --- 1. MAPPING USER (Quan trọng nhất) ---
-            CreateMap<User, UserDTO>();
-            CreateMap<UserCreateDTO, User>();
+            CreateMap<User, UserDTO>()
+            .ForMember(dest => dest.Avatar, opt => opt.MapFrom(src =>
+                    !string.IsNullOrEmpty(src.Avatar) ? $"{baseUrl}/{src.Avatar}" : src.Avatar));
 
             CreateMap<UserUpdateDTO, User>()
                 // Bỏ qua các trường không được phép tự cập nhật hoặc cập nhật thủ công
@@ -38,7 +40,8 @@ namespace Comax.Mapping
          src.Author != null ? src.Author.Name : "N/A"))
 
      // 2. Map ảnh bìa
-     .ForMember(dest => dest.ThumbnailUrl, opt => opt.MapFrom(src => src.CoverImage))
+     .ForMember(dest => dest.ThumbnailUrl, opt => opt.MapFrom(src =>
+                    !string.IsNullOrEmpty(src.CoverImage) ? $"{baseUrl}/{src.CoverImage}" : src.CoverImage))
 
      // 3. Map danh sách Tên thể loại (An toàn: tránh lỗi nếu Category null)
      .ForMember(dest => dest.CategoryNames, opt => opt.MapFrom(src =>
@@ -84,13 +87,14 @@ namespace Comax.Mapping
 
             CreateMap<ChapterUpdateDTO, Chapter>()
                 .ForMember(dest => dest.Order, opt => opt.MapFrom(src => src.ChapterNumber))
+                .ForMember(dest => dest.Id, opt => opt.Ignore())
+                .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
                 .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
-
             // --- 4. MAPPING PAGE (Xử lý URL Minio Local) ---
             CreateMap<Page, PageDTO>()
-                .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src =>
+               .ForMember(dest => dest.ImageUrl, opt => opt.MapFrom(src =>
                     !string.IsNullOrEmpty(src.ImageUrl)
-                        ? src.ImageUrl.Replace("http://minio:9000", "http://localhost:9000")
+                        ? $"{baseUrl}/{src.ImageUrl}" 
                         : src.ImageUrl));
 
             // --- 5. MAPPING CÁC THỰC THỂ KHÁC ---

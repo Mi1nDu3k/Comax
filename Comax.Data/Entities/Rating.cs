@@ -12,4 +12,4 @@
         public virtual Comic Comic { get; set; } = null!;
         public virtual User User { get; set; } = null!;
     }
-Z
+    }

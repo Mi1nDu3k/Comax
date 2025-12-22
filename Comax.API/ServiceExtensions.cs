@@ -68,7 +68,7 @@ namespace Comax.API.Extensions
             services.AddScoped<IFavoriteService, FavoriteService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IStorageService, MinioStorageService>();
-
+            services.AddScoped<ISubscriptionService, SubscriptionService>();
             // 6. Workers (Singleton)
             services.AddSingleton<IViewCountBuffer, ViewCountBuffer>();
             services.AddHostedService<ViewCountWorker>();
@@ -144,6 +144,7 @@ namespace Comax.API.Extensions
 
             services.AddMemoryCache();
             services.AddAuthorization();
+            services.AddResponseCaching();
         }
     }
 }

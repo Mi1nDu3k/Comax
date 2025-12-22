@@ -17,5 +17,25 @@ namespace Comax.Data.Repositories
             return await _context.Categories
                 .FirstOrDefaultAsync(c => c.Slug == slug && !c.IsDeleted);
         }
+        public async Task<List<ComicDTO>> GetFilteredComics(List<int> categoryIds)
+        {
+            var query = _context.Comics.AsQueryable();
+
+            if (categoryIds != null && categoryIds.Any())
+            {
+                // Kỹ thuật lọc "AND": 
+                // Duyệt qua từng CategoryId yêu cầu, truyện phải thỏa mãn từng cái một
+                foreach (var id in categoryIds)
+                {
+                    query = query.Where(c => c.ComicCategories.Any(cc => cc.CategoryId == id));
+                }
+            }
+
+            var result = await query
+                .Include(c => c.ComicCategories)
+                .ToListAsync();
+
+            return _mapper.Map<List<ComicDTO>>(result);
+        }
     }
 }

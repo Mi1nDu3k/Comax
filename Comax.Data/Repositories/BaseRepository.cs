@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
 
 public class BaseRepository<T> : IBaseRepository<T> where T : class
@@ -23,7 +24,10 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
     {
         return await _context.Set<T>().ToListAsync();
     }
-
+    public async Task<T?> GetAsync(Expression<Func<T, bool>> predicate)
+    {
+        return await _dbSet.FirstOrDefaultAsync(predicate);
+    }
     // THÊM TỪ KHÓA 'virtual' VÀO ĐÂY
     public virtual async Task<T?> GetByIdAsync(int id)
     {
@@ -47,16 +51,7 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
             baseEntity.RowVersion = Guid.NewGuid();
         }
 
-        _context.Set<T>().Update(entity);
-
-        try
-        {
-            return entity;
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            throw;
-        }
+        return entity;
     }
 
     public async Task<(List<T> Items, int TotalCount)> GetAllPagedAsync(int pageNumber, int pageSize)

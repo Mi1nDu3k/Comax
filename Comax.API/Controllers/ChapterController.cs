@@ -93,5 +93,14 @@ namespace Comax.API.Controllers
             if (!result) return NotFound();
             return NoContent();
         }
+        [HttpGet("{comicSlug}/{chapterSlug}")]
+        [ResponseCache(Duration = 604800)] 
+        public async Task<IActionResult> GetChapter(string comicSlug, string chapterSlug)
+        {
+            var chapter = await _chapterService.GetChapterBySlugsAsync(comicSlug, chapterSlug);
+            if (chapter == null) return NotFound();
+
+            return Ok(chapter);
+        }
     }
 }

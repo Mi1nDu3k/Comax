@@ -157,66 +157,71 @@ namespace Comax.Business.Services
         // 4. UPDATE (ĐÃ TỐI ƯU - KHÔNG GỌI LẠI DB)
         public override async Task<ComicDTO> UpdateAsync(int id, ComicUpdateDTO dto)
         {
-            // 1. Lấy Entity từ DB (Tracked)
+            // 1. Lấy dữ liệu và BẮT BUỘC phải Include ComicCategories
+            // Nếu không Include, lệnh Clear() sẽ làm mất quan hệ và có thể gây xóa Cascade
             var entity = await _comicRepo.GetByIdAsync(id);
-            if (entity == null) throw new Exception("Comic not found");
+            if (entity == null) throw new Exception("Không tìm thấy truyện trong hệ thống.");
 
+            // Lưu slug để xóa cache
             string oldSlug = entity.Slug;
 
-            // 2. Map dữ liệu
+            // 2. Map các thông tin cơ bản (Title, Description, AuthorId...)
+            // Mapper đã cấu hình Ignore Id nên Id 21 sẽ không bị ghi đè thành 0
             _mapper.Map(dto, entity);
 
-            // [QUAN TRỌNG] Ngắt tham chiếu Author để tránh lỗi Foreign Key
-            entity.Author = null;
-
-            // 3. Xử lý ảnh
+            // 3. XỬ LÝ ẢNH - Tách riêng khỏi Category
             if (dto.CoverImageFile != null)
             {
+                // Xóa ảnh cũ trên MinIO (chỉ xóa nếu không phải placeholder)
                 if (!string.IsNullOrEmpty(entity.CoverImage) && !entity.CoverImage.Contains("placehold"))
                 {
                     await _storageService.DeleteFileAsync(entity.CoverImage);
                 }
-                string imageUrl = await _storageService.UploadFileAsync(dto.CoverImageFile, "comics");
-                entity.CoverImage = imageUrl;
+                // Upload ảnh mới và lưu đường dẫn TƯƠNG ĐỐI
+                entity.CoverImage = await _storageService.UploadFileAsync(dto.CoverImageFile, "comics");
             }
 
-            // 4. Xử lý Category
-            if (!string.IsNullOrEmpty(dto.CategoryID))
+            if (dto.CategoryIds != null && dto.CategoryIds.Any())
             {
-                try
-                {
-                    var categoryIds = JsonSerializer.Deserialize<List<int>>(dto.CategoryID);
-                    if (categoryIds == null || !categoryIds.Any())
-                    {
-                        var strIds = JsonSerializer.Deserialize<List<string>>(dto.CategoryID);
-                        categoryIds = strIds?.Select(int.Parse).ToList();
-                    }
+                
+                var allCategories = await _unitOfWork.Categories.GetAllAsync();
 
-                    if (categoryIds != null)
+
+                var validCategoryIds = allCategories.Select(c => c.Id).ToList();
+
+                entity.ComicCategories.Clear();
+
+                foreach (var catId in dto.CategoryIds)
+                {
+               
+                    if (validCategoryIds.Contains(catId))
                     {
-                        entity.ComicCategories.Clear();
-                        foreach (var catId in categoryIds)
+                        entity.ComicCategories.Add(new ComicCategory
                         {
-                            entity.ComicCategories.Add(new ComicCategory { CategoryId = catId });
-                        }
+                            ComicId = id,
+                            CategoryId = catId
+                        });
+                    }
+                    else
+                    {
+                        
+                        Console.WriteLine($"[Warning] CategoryId {catId} không tồn tại!");
                     }
                 }
-                catch { /* Log lỗi parse JSON nếu cần */ }
             }
 
-            // 5. Cập nhật RowVersion thủ công
+            // 5. Cập nhật RowVersion để tránh tranh chấp dữ liệu (Concurrency)
             entity.RowVersion = Guid.NewGuid();
-            await _unitOfWork.CommitAsync();
-            // 6. Xóa Cache (Dùng biến entity để lấy Slug mới nhất)
-            await _distCache.RemoveAsync($"comic_id_{id}");
+            entity.UpdatedAt = DateTime.UtcNow;
 
-            if (oldSlug != entity.Slug)
-            {
-                _memoryCache.Remove($"comic_slug_{oldSlug}");
-            }
+            // 6. Lưu xuống DB
+            await _unitOfWork.CommitAsync();
+
+            // 7. Xử lý Cache (Xóa sạch để cập nhật dữ liệu mới nhất)
+            await _distCache.RemoveAsync($"comic_id_{id}");
+            _memoryCache.Remove($"comic_slug_{oldSlug}");
             _memoryCache.Remove($"comic_slug_{entity.Slug}");
 
-            // 7. Trả về
             return _mapper.Map<ComicDTO>(entity);
         }
 

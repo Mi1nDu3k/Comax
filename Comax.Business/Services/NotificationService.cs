@@ -1,5 +1,5 @@
 ﻿using AutoMapper;
-using Comax.Business.Hubs; // Import Hub
+using Comax.API.Hubs;
 using Comax.Business.Interfaces;
 using Comax.Common.DTOs.Notification;
 using Comax.Common.Enums;

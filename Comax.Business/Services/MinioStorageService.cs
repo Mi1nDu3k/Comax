@@ -59,31 +59,27 @@ namespace Comax.Business.Services
                 await _minioClient.PutObjectAsync(putObjectArgs);
             }
 
-            var protocol = _useSSL ? "https" : "http";
-            return $"{protocol}://{_endpoint}/{_bucketName}/{newFileName}";
+            //var protocol = _useSSL ? "https" : "http";
+            return newFileName;
         }
 
-        public async Task DeleteFileAsync(string fileUrl)
+        public async Task DeleteFileAsync(string objectName) // Đổi tên tham số cho rõ nghĩa
         {
-            if (string.IsNullOrEmpty(fileUrl) || _minioClient == null) return;
+            if (string.IsNullOrEmpty(objectName) || _minioClient == null) return;
 
             try
             {
-                var uri = new Uri(fileUrl);
-                var path = uri.AbsolutePath.Trim('/');
-                var objectName = path.Replace($"{_bucketName}/", "");
-
-                // SỬA LỖI 3 & 4: Dùng RemoveObjectArgs thay vì truyền string
+               
                 var removeArgs = new RemoveObjectArgs()
                     .WithBucket(_bucketName)
                     .WithObject(objectName);
 
                 await _minioClient.RemoveObjectAsync(removeArgs);
             }
-            catch
+            catch (Exception ex)
             {
-                // Log lỗi nếu cần
+                // Log _logger.LogError(ex.Message);
             }
         }
     }
-}
+    }

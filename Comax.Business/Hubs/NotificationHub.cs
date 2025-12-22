@@ -1,8 +1,12 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.Authorization;
 
-namespace Comax.Business.Hubs
+namespace Comax.API.Hubs
 {
+    [Authorize]
     public class NotificationHub : Hub
     {
+
     }
 }

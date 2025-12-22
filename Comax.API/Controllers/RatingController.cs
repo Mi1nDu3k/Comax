@@ -35,7 +35,7 @@ namespace Comax.API.Controllers
             if (existingRating != null)
             {
                 existingRating.Score = request.Score;
-                _unitOfWork.Ratings.Update(existingRating);
+                _unitOfWork.Ratings.UpdateAsync(existingRating);
             }
             else
             {
