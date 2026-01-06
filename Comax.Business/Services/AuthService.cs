@@ -10,7 +10,7 @@ namespace Comax.Business.Services
     public class AuthService : IAuthService
     {
         private readonly IUserRepository _userRepo;
-        private readonly IRoleRepository _roleRepo; // Nếu cần lấy role name
+        private readonly IRoleRepository _roleRepo; 
         private readonly IJwtHelper _jwtHelper;
 
         public AuthService(IUserRepository userRepo, IRoleRepository roleRepo, IJwtHelper jwtHelper)
@@ -26,15 +26,15 @@ namespace Comax.Business.Services
 
             if (user == null || !PasswordHelper.VerifyPassword(dto.Password, user.PasswordHash))
             {
-                return null; // Login thất bại
+                return null;
             }
 
             if (user.IsDeleted || user.IsBanned)
             {
-                return null; // Tài khoản bị khóa
+                return null; 
             }
 
-            // Lấy tên Role
+            
             string roleName = user.Role?.Name;
             if (string.IsNullOrEmpty(roleName))
             {
@@ -42,7 +42,6 @@ namespace Comax.Business.Services
                 roleName = role?.Name ?? "User";
             }
 
-            // Tạo Token
             return _jwtHelper.GenerateToken(user.Id.ToString(), roleName);
         }
     }

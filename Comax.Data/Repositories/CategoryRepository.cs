@@ -1,4 +1,6 @@
-﻿using Comax.Data.Entities;
+﻿using AutoMapper;
+using Comax.Common.DTOs.Comic;
+using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
@@ -6,6 +8,8 @@ namespace Comax.Data.Repositories
 {
     public class CategoryRepository : BaseRepository<Category>, ICategoryRepository
     {
+        private readonly IComicRepository _comicRepo;
+        private readonly IMapper _mapper;
         public CategoryRepository(ComaxDbContext context) : base(context) { }
 
         public async Task<Category?> GetByNameAsync(string name)
