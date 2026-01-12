@@ -1,4 +1,5 @@
-﻿using Comax.Business.Interfaces;
+﻿using Comax.Business.Interfaces; 
+using Comax.Business.Services.Interfaces; 
 using Comax.Common.Enums;
 using Comax.Data.Repositories.Interfaces;
 using System;
@@ -22,26 +23,26 @@ namespace Comax.Business.Services
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null) return false;
 
-           
+          
             user.IsVip = true;
             user.SubStatus = SubscriptionStatus.Active;
 
-            
+ 
             DateTime startDate = (user.VipExpireAt.HasValue && user.VipExpireAt.Value > DateTime.UtcNow)
                 ? user.VipExpireAt.Value
                 : DateTime.UtcNow;
 
             user.VipExpireAt = startDate.AddMonths(months);
 
-          
-            await _unitOfWork.Users.UpdateAsync(user);
+         
+            _unitOfWork.Users.Update(user);
             await _unitOfWork.CommitAsync();
 
-          
+            
             await _notificationService.CreateAndSendNotificationAsync(
                 userId,
-                $"Nâng cấp VIP thành công! Thời hạn đến: {user.VipExpireAt:dd/MM/yyyy}",
-                "/profile"
+                $"Chúc mừng! Bạn đã nâng cấp VIP thành công. Hạn dùng đến: {user.VipExpireAt:dd/MM/yyyy}",
+                "/profile" 
             );
 
             return true;

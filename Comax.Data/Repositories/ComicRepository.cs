@@ -9,22 +9,25 @@ namespace Comax.Data.Repositories
     {
         public ComicRepository(ComaxDbContext context) : base(context) { }
 
-
-
+        // SỬA: Chỉnh lại lỗi gõ nhầm 'cg.ge' thành 'cc.Category'
         public async Task<Comic?> GetByIdAsync(int id)
         {
             return await _dbSet
-                .Include(c => c.Author)    
-                .Include(c => c.ComicCategories)  
+                .Include(c => c.Author)
+                .Include(c => c.ComicCategories)
+                .ThenInclude(cc => cc.Category) 
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
 
+
         public async Task<Comic?> GetBySlugAsync(string slug)
         {
-          
-
             return await _context.Comics
-                .Include(c => c.Author) 
+                .Include(c => c.Author)
+          
+                .Include(c => c.ComicCategories)
+                .ThenInclude(cc => cc.Category)
+         
                 .FirstOrDefaultAsync(c => c.Slug == slug && !c.IsDeleted);
         }
 
@@ -34,7 +37,33 @@ namespace Comax.Data.Repositories
                 .Where(c => c.Title.Contains(title))
                 .ToListAsync();
         }
+        public async Task<List<Comic>> SearchAsync(string keyword, int limit = 0)
+        {
+            if (string.IsNullOrWhiteSpace(keyword)) return new List<Comic>();
 
+        
+            IQueryable<Comic> query = _dbSet;
+
+
+            query = query
+                .Include(c => c.Chapters) 
+                .Where(c => c.Title.Contains(keyword) || (c.Author != null && c.Author.Name.Contains(keyword)))
+                .OrderByDescending(c => c.ViewCount)
+                .AsNoTracking();
+
+         
+            if (limit > 0)
+            {
+           
+                query = query.Take(limit);
+            }
+            else
+            {
+                query = query.Take(50); 
+            }
+
+            return await query.ToListAsync();
+        }
         public async Task<IEnumerable<Comic>> GetByAuthorIdAsync(int authorId)
         {
             return await _dbSet
@@ -48,6 +77,7 @@ namespace Comax.Data.Repositories
                 .Where(c => c.ComicCategories.Any(cc => cc.CategoryId == categoryId))
                 .ToListAsync();
         }
+
         public async Task<PagedList<Comic>> GetLatestUpdatedComicsAsync(PaginationParams param)
         {
             var query = _context.Comics
@@ -56,7 +86,6 @@ namespace Comax.Data.Repositories
                 .Include(c => c.ComicCategories)
                 .ThenInclude(cc => cc.Category)
                 .Where(c => !c.IsDeleted)
-                
                 .OrderByDescending(c => c.Chapters.Max(ch => (DateTime?)ch.PublishDate) ?? c.CreatedAt);
 
             var count = await query.CountAsync();
@@ -67,13 +96,57 @@ namespace Comax.Data.Repositories
 
             return new PagedList<Comic>(items, count, param.PageNumber, param.PageSize);
         }
+
         public async Task<Comic?> GetByIdWithDetailsAsync(int id)
         {
             return await _context.Comics
                 .Include(c => c.Author)
                 .Include(c => c.ComicCategories)
-                    .ThenInclude(cc => cc.Category) // Lấy thông tin Category để lấy Name
+                    .ThenInclude(cc => cc.Category)
                 .FirstOrDefaultAsync(c => c.Id == id && !c.IsDeleted);
+        }
+
+
+        public async Task<PagedList<Comic>> GetTrashAsync(PaginationParams param, string searchTerm)
+        {
+            var query = _context.Comics.IgnoreQueryFilters()
+                                        .Where(c => c.IsDeleted == true)
+                                        .Include(c => c.ComicCategories) // Lưu ý: Nếu muốn hiện tên thể loại trong thùng rác thì cũng cần ThenInclude ở đây
+                                        .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                query = query.Where(c => c.Title.Contains(searchTerm));
+            }
+
+            query = query.OrderByDescending(c => c.UpdatedAt);
+
+            var count = await query.CountAsync();
+            var items = await query
+                .Skip((param.PageNumber - 1) * param.PageSize)
+                .Take(param.PageSize)
+                .ToListAsync();
+
+            return new PagedList<Comic>(items, count, param.PageNumber, param.PageSize);
+        }
+
+        public async Task<Comic?> GetDeletedByIdAsync(int id)
+        {
+            return await _context.Comics.IgnoreQueryFilters()
+                                        .FirstOrDefaultAsync(c => c.Id == id && c.IsDeleted == true);
+        }
+
+        public void HardDelete(Comic comic)
+        {
+            _context.Comics.Remove(comic);
+        }
+        public async Task<int> DeleteComicsInTrashOlderThanAsync(DateTime thresholdDate)
+        {
+            
+            return await _context.Comics
+                .IgnoreQueryFilters() 
+                .Where(c => c.IsDeleted && c.DeletedAt <= thresholdDate)
+                .ExecuteDeleteAsync();
         }
     }
 }

@@ -16,6 +16,7 @@ namespace Comax.Data.Repositories.Interfaces
         IRatingRepository Ratings { get; }
         IFavoriteRepository Favorites { get; }
         INotificationRepository Notifications { get; }
+        IHistoryRepository Histories { get; }
         Task<int> CommitAsync();
     }
 }

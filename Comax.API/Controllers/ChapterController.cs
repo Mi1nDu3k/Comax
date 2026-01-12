@@ -18,8 +18,8 @@ namespace Comax.API.Controllers
             _chapterService = chapterService;
             _comicService = comicService;
         }
-
-        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        [HttpPost("create-with-images")]
         [DisableRequestSizeLimit] 
         [RequestFormLimits(MultipartBodyLengthLimit = 524288000)]
         public async Task<IActionResult> Create([FromForm] ChapterCreateWithImagesDTO dto)
@@ -56,6 +56,7 @@ namespace Comax.API.Controllers
         {
             var chapter = await _chapterService.GetChapterBySlugsAsync(comicSlug, chapterSlug);
             if (chapter == null) return NotFound(new { message = "Chapter not found" });
+            await _comicService.IncreaseViewCountAsync(chapter.ComicId);
             return Ok(chapter);
         }
 

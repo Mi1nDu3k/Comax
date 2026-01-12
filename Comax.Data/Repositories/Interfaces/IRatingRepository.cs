@@ -8,5 +8,6 @@ namespace Comax.Data.Repositories
     {
         Task<List<Rating>> GetByComicAsync(int comicId);
         Task<double> GetAverageScoreAsync(int comicId);
+        Task<Rating?> GetByUserAndComicAsync(int userId, int comicId);
     }
 }

@@ -18,5 +18,8 @@ namespace Comax.Business.Interfaces
         Task<bool> DeleteAsync(int id, bool hardDelete = false);
         Task<List<Rating>> GetByComicAsync(int comicId);
         Task<double> GetAverageScoreAsync(int comicId);
+        Task<double> AddOrUpdateRatingAsync(int userId, RatingCreateDTO dto);
+        Task<int> GetUserRatingForComicAsync(int userId, int comicId);
+
     }
 }

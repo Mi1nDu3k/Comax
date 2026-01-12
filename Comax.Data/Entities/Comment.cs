@@ -1,4 +1,6 @@
-﻿namespace Comax.Data.Entities
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace Comax.Data.Entities
 {
     public class Comment : BaseEntity
     {
@@ -9,7 +11,8 @@
 
         public int ComicId { get; set; }
         public Comic? Comic { get; set; }
-        public int? ParentId { get; set; } 
+        public int? ParentId { get; set; }
+        [ForeignKey("ParentId")]
         public Comment? ParentComment { get; set; }
         public ICollection<Comment> Replies { get; set; } 
     }

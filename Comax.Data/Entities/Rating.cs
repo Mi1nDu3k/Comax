@@ -1,15 +1,19 @@
-﻿namespace Comax.Data.Entities
+﻿using System.ComponentModel.DataAnnotations.Schema;
+namespace Comax.Data.Entities
 {
     public class Rating : BaseEntity 
     {
-        public int ComicId { get; set; }
-        public int UserId { get; set; }
-        public int Score { get; set; }
 
+        public int Score { get; set; }
         public string? Comment { get; set; }
 
-   
-        public virtual Comic Comic { get; set; } = null!;
-        public virtual User User { get; set; } = null!;
+        public int ComicId { get; set; }
+
+        [ForeignKey("ComicId")] 
+        public virtual Comic Comic { get; set; }
+        public int UserId { get; set; }
+
+        [ForeignKey("UserId")] 
+        public virtual User User { get; set; }
     }
-    }
+}

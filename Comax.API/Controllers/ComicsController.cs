@@ -1,11 +1,11 @@
-﻿using Comax.Business.Services;
-using Comax.Business.Services.Interfaces;
+﻿using Comax.Business.Services.Interfaces;
 using Comax.Common.DTOs.Chapter;
 using Comax.Common.DTOs.Comic;
 using Comax.Common.DTOs.Pagination;
-using Comax.Shared; 
+using Comax.Shared;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace Comax.API.Controllers
 {
@@ -22,11 +22,8 @@ namespace Comax.API.Controllers
             _chapterService = chapterService;
         }
 
-        /// <summary>
-        /// GET: api/Comic
-        /// </summary>
-        /// <param name="paginationParam"></param>
-        /// <returns></returns>
+        // ... GetAll và GetBySlug giữ nguyên ...
+
         [HttpGet]
         public async Task<ActionResult<PagedList<ComicDTO>>> GetAll([FromQuery] PaginationParams paginationParam)
         {
@@ -35,21 +32,16 @@ namespace Comax.API.Controllers
             return Ok(pagedList);
         }
 
-        /// <summary>
-        /// GET: api/Comic/slug/{slug}
-        /// </summary>
-        /// <param name="slug"></param>
-        /// <returns></returns>
         [HttpGet("slug/{slug}")]
         public async Task<ActionResult<ComicDTO>> GetBySlug(string slug)
         {
             if (string.IsNullOrEmpty(slug))
-                return BadRequest(ErrorMessages.Comic.SlugRequired); 
+                return BadRequest(ErrorMessages.Comic.SlugRequired);
 
             var comic = await _comicService.GetBySlugAsync(slug);
 
             if (comic == null)
-                return NotFound(new { message = string.Format(ErrorMessages.Comic.NotFoundBySlug, slug) }); 
+                return NotFound(new { message = string.Format(ErrorMessages.Comic.NotFoundBySlug, slug) });
 
             if (comic.RowVersion != Guid.Empty)
             {
@@ -58,31 +50,32 @@ namespace Comax.API.Controllers
 
             return Ok(comic);
         }
+
+        // --- SỬA LỖI TẠI ĐÂY: GỘP 2 HÀM SEARCH THÀNH 1 ---
         /// <summary>
-        /// GET: api/Comic/search
+        /// GET: api/Comics/search?q=abc&limit=10
         /// </summary>
         [HttpGet("search")]
-        public async Task<ActionResult<IEnumerable<ComicDTO>>> Search([FromQuery] string title)
+        public async Task<IActionResult> Search([FromQuery] string q, [FromQuery] int limit = 0)
         {
-            var results = await _comicService.SearchByTitleAsync(title);
-            return Ok(results);
+            try
+            {
+                // Nếu limit = 0 (không truyền) -> Service sẽ tự lấy mặc định (ví dụ 50 kết quả cho trang Search)
+                // Nếu limit = 6 -> Service lấy 6 kết quả (cho Dropdown)
+                var result = await _comicService.SearchComics(q, limit);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
-
-        /// <summary>
-        /// POST: api/Comic/{id}/view
-        /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        [HttpPost("{id}/view")]
-        public async Task<IActionResult> IncreaseView(int id)
-        {
-            await _comicService.IncreaseViewCountAsync(id);
-            return Ok(new { message = ErrorMessages.Comic.ViewCountIncreased }); 
-        }
+        // --------------------------------------------------
 
         // --- ADMIN APIs ---
 
-        [HttpGet("{id}")]
+        // Khuyên dùng: Thêm :int để tránh xung đột nếu sau này có route string khác
+        [HttpGet("{id:int}")]
         public async Task<ActionResult<ComicDTO>> GetById(int id)
         {
             var comic = await _comicService.GetByIdAsync(id);
@@ -95,10 +88,8 @@ namespace Comax.API.Controllers
             return Ok(comic);
         }
 
-        // ...
         [Authorize(Roles = "Admin")]
         [HttpPost]
-        // Đổi [FromBody] -> [FromForm]
         public async Task<ActionResult<ComicDTO>> Create([FromForm] ComicCreateDTO dto)
         {
             var created = await _comicService.CreateAsync(dto);
@@ -109,9 +100,6 @@ namespace Comax.API.Controllers
         [HttpPut("{id}")]
         public async Task<ActionResult<ComicDTO>> Update(int id, [FromForm] ComicUpdateDTO dto)
         {
-            /// <summary>
-            /// kiểm tra concurrency token từ header If-Match
-            /// </summary>
             if (Request.Headers.TryGetValue("If-Match", out var ifMatch))
             {
                 var clientVersionString = ifMatch.ToString().Replace("\"", "");
@@ -121,7 +109,6 @@ namespace Comax.API.Controllers
 
                 if (currentEntity.RowVersion.ToString() != clientVersionString)
                 {
-                    
                     return StatusCode(412, ErrorMessages.System.ConcurrencyConflict);
                 }
             }
@@ -143,20 +130,18 @@ namespace Comax.API.Controllers
 
         [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id, [FromQuery] bool hardDelete = false)
+        public async Task<IActionResult> Delete(int id)
         {
-            var result = await _comicService.DeleteAsync(id, hardDelete);
+            var result = await _comicService.DeleteAsync(id);
             if (!result) return NotFound();
             return NoContent();
         }
-        /// <summary>
-        /// API Test quyền VIP
-        /// </summary>
+
         [Authorize(Roles = "Admin, VipUser")]
         [HttpGet("premium-content")]
         public IActionResult GetPremiumContent()
         {
-            return Ok(new { message = ErrorMessages.Auth.PremiumContent }); 
+            return Ok(new { message = ErrorMessages.Auth.PremiumContent });
         }
 
         [HttpGet("{id}/chapters")]
@@ -164,6 +149,53 @@ namespace Comax.API.Controllers
         {
             var chapters = await _chapterService.GetByComicIdAsync(id);
             return Ok(chapters);
+        }
+
+        // --- TÍNH NĂNG THÙNG RÁC ---
+
+        [HttpGet("trash")]
+        [Authorize(Roles = "Admin,Mod")]
+        public async Task<IActionResult> GetTrash([FromQuery] PaginationParams param, [FromQuery] string? search)
+        {
+            var result = await _comicService.GetTrashAsync(param, search);
+
+            var metadata = new
+            {
+                result.TotalCount,
+                result.PageSize,
+                result.CurrentPage,
+                result.TotalPages,
+                HasNext = result.CurrentPage < result.TotalPages,
+                HasPrevious = result.CurrentPage > 1
+            };
+
+            Response.Headers.Append("X-Pagination", JsonSerializer.Serialize(metadata));
+
+            return Ok(result);
+        }
+
+        [HttpPut("{id}/restore")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Restore(int id)
+        {
+            var result = await _comicService.RestoreAsync(id);
+            if (!result)
+            {
+                return NotFound(new { message = "Không tìm thấy truyện trong thùng rác." });
+            }
+            return Ok(new { message = "Khôi phục truyện thành công." });
+        }
+
+        [HttpDelete("{id}/purge")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Purge(int id)
+        {
+            var result = await _comicService.PurgeAsync(id);
+            if (!result)
+            {
+                return NotFound(new { message = "Không tìm thấy truyện hoặc đã bị xóa trước đó." });
+            }
+            return Ok(new { message = "Đã xóa vĩnh viễn truyện và ảnh liên quan." });
         }
     }
 }

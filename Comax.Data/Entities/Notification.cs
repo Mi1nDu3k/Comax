@@ -1,15 +1,28 @@
-﻿using Comax.Common.Enums; 
+﻿using System;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Comax.Data.Entities
 {
-    public class Notification : BaseEntity
+    [Table("Notifications")]
+    public class Notification
     {
-        public int UserId { get; set; }
-        public User User { get; set; }
+        [Key]
+        public int Id { get; set; }
 
+        public int UserId { get; set; }
+
+        [ForeignKey("UserId")]
+        public virtual User User { get; set; }
+
+        public int? SenderId { get; set; }
+        [ForeignKey("SenderId")]
+        public virtual User Sender { get; set; }
+
+        [Required]
         public string Message { get; set; }
         public string Url { get; set; }
         public bool IsRead { get; set; } = false;
-        public NotificationType Type { get; set; } = NotificationType.System;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

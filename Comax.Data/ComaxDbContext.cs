@@ -27,6 +27,7 @@ namespace Comax.Data
         public DbSet<ComicCategory> ComicCategories { get; set; }
         public DbSet<Favorite> Favorites { get; set; } = null!;
         public DbSet<Page> Pages { get; set; }
+        public DbSet<History> Histories { get; set; }
 
         // --- CẤU HÌNH ---
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -55,11 +56,42 @@ namespace Comax.Data
             modelBuilder.Entity<ComicCategory>().HasOne(cc => cc.Comic).WithMany(c => c.ComicCategories).HasForeignKey(cc => cc.ComicId);
             modelBuilder.Entity<ComicCategory>().HasOne(cc => cc.Category).WithMany(c => c.ComicCategories).HasForeignKey(cc => cc.CategoryId);
 
-            modelBuilder.Entity<Rating>().HasOne(r => r.User).WithMany().HasForeignKey(r => r.UserId);
-            modelBuilder.Entity<Rating>().HasOne(r => r.Comic).WithMany().HasForeignKey(r => r.ComicId);
+            // Cấu hình Rating
+            modelBuilder.Entity<Rating>()
+                .HasOne(r => r.Comic)
+                .WithMany(c => c.Ratings)
+                .HasForeignKey(r => r.ComicId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<Comment>().HasOne(c => c.User).WithMany().HasForeignKey(c => c.UserId);
-            modelBuilder.Entity<Comment>().HasOne(c => c.Comic).WithMany().HasForeignKey(c => c.ComicId);
+            modelBuilder.Entity<Rating>()
+                .HasOne(r => r.User)
+                .WithMany() // Nếu User có List<Rating> thì sửa thành u => u.Ratings
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // --- CẤU HÌNH COMMENT (QUAN TRỌNG ĐÃ SỬA) ---
+            modelBuilder.Entity<Comment>(entity =>
+            {
+                // 1. Quan hệ với User
+                entity.HasOne(c => c.User)
+                      .WithMany()
+                      .HasForeignKey(c => c.UserId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                // 2. Quan hệ với Comic
+                entity.HasOne(c => c.Comic)
+                      .WithMany() // Nếu Comic có ICollection<Comment> thì sửa thành c.Comments
+                      .HasForeignKey(c => c.ComicId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                // 3. QUAN TRỌNG NHẤT: Quan hệ Cha - Con (Replies)
+                // Giúp .Include(c => c.Replies) hoạt động chính xác
+                entity.HasOne(c => c.ParentComment)
+                      .WithMany(c => c.Replies)
+                      .HasForeignKey(c => c.ParentId)
+                      .OnDelete(DeleteBehavior.Cascade); // Xóa cha thì xóa luôn con
+            });
+            // ---------------------------------------------
 
             modelBuilder.Entity<Favorite>().HasKey(f => new { f.UserId, f.ComicId });
             modelBuilder.Entity<Favorite>().HasOne(f => f.User).WithMany().HasForeignKey(f => f.UserId);
@@ -112,7 +144,6 @@ namespace Comax.Data
                     if (entry.State == EntityState.Added)
                     {
                         baseEntity.CreatedAt = now;
-                        // Nếu chưa có UpdatedAt thì gán bằng CreatedAt luôn
                         if (baseEntity.UpdatedAt == default) baseEntity.UpdatedAt = now;
                     }
                     else if (entry.State == EntityState.Modified)
@@ -122,7 +153,6 @@ namespace Comax.Data
                 }
 
                 // 2. Tự động sinh Slug (Nếu chưa có)
-                // CHÚ Ý: Logic này chỉ chạy trong RAM, không check trùng trong DB để tránh lỗi Concurrency
                 if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
                 {
                     if (entry.Entity is Comic comic)

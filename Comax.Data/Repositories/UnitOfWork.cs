@@ -18,6 +18,7 @@ namespace Comax.Data.Repositories
         private IRatingRepository _ratings;
         private INotificationRepository _notifications;
         private IFavoriteRepository _favorites;
+        private IHistoryRepository _histories;
 
         public UnitOfWork(ComaxDbContext context)
         {
@@ -34,7 +35,7 @@ namespace Comax.Data.Repositories
         public IRatingRepository Ratings => _ratings ??= new RatingRepository(_context);
         public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_context);
         public IFavoriteRepository Favorites => _favorites ??= new FavoriteRepository(_context);
-
+        public IHistoryRepository Histories => _histories ??= new HistoryRepository(_context);
         public async Task<int> CommitAsync()
         {
             return await _context.SaveChangesAsync();

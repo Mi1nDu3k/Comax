@@ -42,7 +42,7 @@ namespace Comax.Business.Services
             }
 
             var user = _mapper.Map<User>(registerDto);
-            user.PasswordHash = registerDto.Password; // Lưu ý: Nên Hash password ở đây thay vì lưu raw
+            user.PasswordHash = Comax.Common.Helpers.PasswordHelper.HashPassword(registerDto.Password);
             user.RoleId = (int)Comax.Common.Enums.Role.User;
             user.IsVip = false;
 

@@ -16,7 +16,8 @@ namespace Comax.Data.Repositories
         {
             return await _dbSet
                 .Include(c => c.User) 
-                .Include(c => c.Replies) 
+                .Include(c => c.Replies)
+                .ThenInclude(r => r.User)
                 .Where(c => c.ComicId == comicId && c.ParentId == null)
                 .OrderByDescending(c => c.CreatedAt) 
                 .Skip((page - 1) * pageSize)

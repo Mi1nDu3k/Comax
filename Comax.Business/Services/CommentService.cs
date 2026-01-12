@@ -72,16 +72,17 @@ namespace Comax.Business.Services
 
 
                 if (parentComment != null && parentComment.UserId != dto.UserId)
+
                 {
                     if (user != null)
                     {
-                      
+                        string replierName = user.Username;
+                        string notificationUrl = $"/truyen/{dto.ComicId}?commentId={entity.Id}";
                         await _notiService.CreateAndSendNotificationAsync(
-                            parentComment.UserId,
-                            $"{user.Username} đã trả lời bình luận của bạn.",
-                            $"/comics/{dto.ComicId}", 
-                            NotificationType.ReplyComment 
-                        );
+                         parentComment.UserId, // Tham số 1: UserId
+                         $"{replierName} đã trả lời bình luận của bạn.", // Tham số 2: Message
+                         notificationUrl // Tham số 3: Url
+ );
                     }
                 }
             }

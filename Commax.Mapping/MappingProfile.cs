@@ -1,10 +1,12 @@
 ﻿using AutoMapper;
 using Comax.Common.DTOs;
+using Comax.Common.DTOs.Auth;
 using Comax.Common.DTOs.Author;
 using Comax.Common.DTOs.Category;
 using Comax.Common.DTOs.Chapter;
 using Comax.Common.DTOs.Comic;
 using Comax.Common.DTOs.Comment;
+using Comax.Common.DTOs.History;
 using Comax.Common.DTOs.Notification;
 using Comax.Common.DTOs.Page;
 using Comax.Common.DTOs.Rating;
@@ -22,48 +24,47 @@ namespace Comax.Mapping
             CreateMap<User, UserDTO>()
             .ForMember(dest => dest.Avatar, opt => opt.MapFrom(src =>
                     !string.IsNullOrEmpty(src.Avatar) ? $"{baseUrl}/{src.Avatar}" : src.Avatar));
-
+            CreateMap<RegisterDTO, User>();
             CreateMap<UserUpdateDTO, User>()
                 // Bỏ qua các trường không được phép tự cập nhật hoặc cập nhật thủ công
                 .ForMember(dest => dest.Id, opt => opt.Ignore())
                 .ForMember(dest => dest.Role, opt => opt.Ignore())
                 .ForMember(dest => dest.RoleId, opt => opt.Ignore())
                 .ForMember(dest => dest.PasswordHash, opt => opt.Ignore())
-                // CHỐT chặn lỗi: Chỉ cập nhật những trường có giá trị (khác null) gửi từ Client
-                // Điều này giúp giữ lại dữ liệu cũ nếu request không gửi đủ các trường
+              
                 .ForAllMembers(opts => opts.Condition((src, dest, srcMember) => srcMember != null));
 
             // --- 2. MAPPING COMIC ---
             CreateMap<Comic, ComicDTO>()
-     // 1. Map tên tác giả (An toàn: kiểm tra Author null)
+     
      .ForMember(dest => dest.AuthorName, opt => opt.MapFrom(src =>
          src.Author != null ? src.Author.Name : "N/A"))
 
-     // 2. Map ảnh bìa
+  
      .ForMember(dest => dest.ThumbnailUrl, opt => opt.MapFrom(src =>
                     !string.IsNullOrEmpty(src.CoverImage) ? $"{baseUrl}/{src.CoverImage}" : src.CoverImage))
 
-     // 3. Map danh sách Tên thể loại (An toàn: tránh lỗi nếu Category null)
+   
      .ForMember(dest => dest.CategoryNames, opt => opt.MapFrom(src =>
          src.ComicCategories != null
              ? src.ComicCategories.Where(cc => cc.Category != null).Select(cc => cc.Category.Name).ToList()
              : new List<string>()))
 
-     // 4. Map danh sách ID thể loại
+   
      .ForMember(dest => dest.CategoryIds, opt => opt.MapFrom(src =>
          src.ComicCategories.Select(cc => cc.CategoryId).ToList()))
 
-     // 5. Tính điểm Rating trung bình (Giả sử src.Ratings là một Collection)
+     
      .ForMember(dest => dest.Rating, opt => opt.MapFrom(src =>
          src.Ratings != null && src.Ratings.Any() ? src.Ratings.Average(r => r.Score) : 0))
 
-     // 6. Lấy số chương mới nhất
+ 
      .ForMember(dest => dest.LatestChapterNumber, opt => opt.MapFrom(src =>
          src.Chapters != null && src.Chapters.Any()
              ? src.Chapters.Max(c => c.ChapterNumber)
              : (int?)null))
 
-     // 7. Lấy ngày cập nhật mới nhất (Ưu tiên ngày Chapter > Ngày tạo truyện)
+
      .ForMember(dest => dest.LatestChapterDate, opt => opt.MapFrom(src =>
          src.Chapters != null && src.Chapters.Any()
              ? src.Chapters.Max(c => (DateTime?)c.PublishDate) ?? src.CreatedAt
@@ -107,12 +108,26 @@ namespace Comax.Mapping
             CreateMap<CategoryUpdateDTO, Category>();
 
             CreateMap<Comment, CommentDTO>()
-                .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User != null ? src.User.Username : "Ẩn danh"));
+     .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User != null ? src.User.Username : "Ẩn danh"))
+     .ForMember(dest => dest.UserAvatar, opt => opt.MapFrom(src =>
+         src.User != null
+             ? (!string.IsNullOrEmpty(src.User.Avatar) ? $"{baseUrl}/{src.User.Avatar}" : src.User.Avatar)
+             : null))
+
+     .ForMember(dest => dest.Replies, opt => opt.MapFrom(src => src.Replies));
             CreateMap<CommentCreateDTO, Comment>();
             CreateMap<CommentUpdateDTO, Comment>();
 
 
-            CreateMap<Notification, NotificationDTO>().ReverseMap();
+            CreateMap<Notification, NotificationDTO>()
+              .ForMember(dest => dest.SenderName, opt => opt.MapFrom(src => src.Sender != null ? src.Sender.Username : "Hệ thống"))
+              .ForMember(dest => dest.SenderAvatar, opt => opt.MapFrom(src => src.Sender != null ? src.Sender.Avatar : null));
+
+            CreateMap<History, HistoryDTO>()
+     .ForMember(dest => dest.ComicTitle, opt => opt.MapFrom(src => src.Comic.Title))
+     .ForMember(dest => dest.ComicImage, opt => opt.MapFrom(src => src.Comic.CoverImage))
+     .ForMember(dest => dest.ChapterNumber, opt => opt.MapFrom(src => src.Chapter.ChapterNumber));
+
         }
     }
 }

@@ -54,8 +54,10 @@ namespace Comax.API.Extensions
             services.AddScoped<IReportRepository, ReportRepository>();
             services.AddScoped<IFavoriteRepository, FavoriteRepository>();
             services.AddScoped<INotificationRepository, NotificationRepository>();
+            services.AddScoped<IHistoryRepository, HistoryRepository>();
 
             // 5. Services (SCOPED)
+            services.AddScoped<IHistoryService, HistoryService>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IComicService, ComicService>();
@@ -72,6 +74,7 @@ namespace Comax.API.Extensions
             // 6. Workers (Singleton)
             services.AddSingleton<IViewCountBuffer, ViewCountBuffer>();
             services.AddHostedService<ViewCountWorker>();
+            services.AddHostedService<Comax.API.Workers.ComicTrashCleanupWorker>();
 
             // 7. AutoMapper & Validators
             services.AddAutoMapper(typeof(MappingProfile));

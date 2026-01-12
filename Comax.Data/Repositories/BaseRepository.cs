@@ -1,7 +1,6 @@
 ﻿using Comax.Data;
 using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
-using Comax.Shared.Extensions;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -22,34 +21,44 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
 
     public async Task<List<T>> GetAllAsync()
     {
-        return await _context.Set<T>().ToListAsync();
+        return await _dbSet.ToListAsync();
     }
+
     public async Task<T?> GetAsync(Expression<Func<T, bool>> predicate)
     {
         return await _dbSet.FirstOrDefaultAsync(predicate);
     }
-    // THÊM TỪ KHÓA 'virtual' VÀO ĐÂY
+
     public virtual async Task<T?> GetByIdAsync(int id)
     {
-        return await _context.Set<T>().FindAsync(id);
+        return await _dbSet.FindAsync(id);
     }
 
     public async Task<T> AddAsync(T entity)
     {
         if (entity is Comax.Data.Entities.BaseEntity baseEntity)
         {
+            // Gán giá trị mặc định khi tạo mới
             baseEntity.RowVersion = Guid.NewGuid();
+            // Nếu có CreatedAt, nên gán luôn ở đây
+            baseEntity.CreatedAt = DateTime.UtcNow;
         }
-        await _context.Set<T>().AddAsync(entity);
+
+        await _dbSet.AddAsync(entity); // Đã đúng
         return entity;
     }
 
+    // --- ĐÃ SỬA LẠI HÀM NÀY ---
     public async Task<T?> UpdateAsync(T entity)
     {
         if (entity is Comax.Data.Entities.BaseEntity baseEntity)
         {
             baseEntity.RowVersion = Guid.NewGuid();
+            // baseEntity.UpdatedAt = DateTime.UtcNow; // Nên có dòng này nếu BaseEntity hỗ trợ
         }
+
+        _dbSet.Update(entity); // <--- QUAN TRỌNG NHẤT: Báo cho EF biết cần update
+        await Task.CompletedTask; // Giữ nguyên signature async
 
         return entity;
     }
@@ -57,9 +66,7 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
     public async Task<(List<T> Items, int TotalCount)> GetAllPagedAsync(int pageNumber, int pageSize)
     {
         var query = _dbSet.AsQueryable();
-
         var totalCount = await query.CountAsync();
-
         var items = await query
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
@@ -68,7 +75,7 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
         return (items, totalCount);
     }
 
-    public async Task<bool> DeleteAsync(int id, bool hardDelete = false)
+    public virtual async Task<bool> DeleteAsync(int id, bool hardDelete = false)
     {
         var entity = await _dbSet.FindAsync(id);
         if (entity == null) return false;
@@ -83,13 +90,22 @@ public class BaseRepository<T> : IBaseRepository<T> where T : class
             {
                 baseEntity.IsDeleted = true;
                 baseEntity.DeletedAt = DateTime.UtcNow;
-                _dbSet.Update(entity);
+                _dbSet.Update(entity); // Soft delete cũng cần gọi Update (đoạn này bạn viết đúng rồi)
             }
             else
             {
+                // Nếu entity không kế thừa BaseEntity thì bắt buộc phải hard delete
                 _dbSet.Remove(entity);
             }
         }
         return true;
+    }
+    public async Task AddRangeAsync(IEnumerable<T> entities)
+    {
+        await _dbSet.AddRangeAsync(entities);
+    }
+    public void Update(T entity)
+    {
+        _dbSet.Update(entity);
     }
 }
