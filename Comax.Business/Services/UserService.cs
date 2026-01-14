@@ -96,9 +96,6 @@ namespace Comax.Business.Services
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
             if (user == null) return false;
 
-            // Logic Ban: Ví dụ gán IsActive = false hoặc LockoutEnd
-            // user.IsBanned = true; 
-
             await _unitOfWork.Users.UpdateAsync(user);
             await _unitOfWork.CommitAsync();
             return true;

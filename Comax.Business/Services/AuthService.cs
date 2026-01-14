@@ -97,7 +97,7 @@ namespace Comax.Business.Services
             string userName = !string.IsNullOrEmpty(user.Username) ? user.Username : "Người dùng";
             string emailBody = GetOtpTemplate(userName, otp, verifyLink);
 
-            await _emailService.SendEmailAsync(user.Email, "🔑 [Comax] Mã xác thực của bạn", emailBody);
+            await _emailService.SendEmailAsync(user.Email, "[Comax] Mã xác thực của bạn", emailBody);
 
             return true;
         }
