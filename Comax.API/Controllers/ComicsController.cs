@@ -22,7 +22,6 @@ namespace Comax.API.Controllers
             _chapterService = chapterService;
         }
 
-        // ... GetAll và GetBySlug giữ nguyên ...
 
         [HttpGet]
         public async Task<ActionResult<PagedList<ComicDTO>>> GetAll([FromQuery] PaginationParams paginationParam)

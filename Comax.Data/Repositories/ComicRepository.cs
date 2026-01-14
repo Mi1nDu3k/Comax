@@ -148,5 +148,6 @@ namespace Comax.Data.Repositories
                 .Where(c => c.IsDeleted && c.DeletedAt <= thresholdDate)
                 .ExecuteDeleteAsync();
         }
+
     }
 }

@@ -14,5 +14,6 @@ namespace Comax.Data.Repositories.Interfaces
         Task<List<Comic>> SearchAsync(string keyword, int limit = 0);
         Task<int> DeleteComicsInTrashOlderThanAsync(DateTime thresholdDate);
         void HardDelete(Comic comic);
+
     }
 }
