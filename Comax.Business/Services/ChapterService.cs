@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Comax.Business.Interfaces;
 using Comax.Business.Services.Interfaces;
+using Comax.Common.Constants;
 using Comax.Common.DTOs.Chapter;
 using Comax.Common.Helpers;
 using Comax.Data.Entities;
@@ -103,7 +104,7 @@ namespace Comax.Business.Services
             string slug = SlugHelper.GenerateSlug(dto.Title);
             var existingChapter = await _chapterRepo.GetByComicIdAndSlugAsync(dto.ComicId, slug);
             if (existingChapter != null)
-                throw new Exception($"Slug '{slug}' đã tồn tại trong truyện này.");
+                throw new Exception(string.Format(SystemMessages.Chapter.SlugExists, slug));
 
             var entity = _mapper.Map<Chapter>(dto);
             entity.Slug = slug;
@@ -128,7 +129,7 @@ namespace Comax.Business.Services
 
             var existingChapter = await _chapterRepo.GetByComicIdAndSlugAsync(dto.ComicId, slug);
             if (existingChapter != null)
-                throw new Exception($"Chương '{finalTitle}' đã tồn tại!");
+                throw new Exception(string.Format(SystemMessages.Chapter.TitleExists, finalTitle));
 
             // B. Upload ảnh song song (Parallel Upload)
             List<string> uploadedUrls = new List<string>();
@@ -201,7 +202,7 @@ namespace Comax.Business.Services
                             // Gọi hàm Batch Processing đã viết ở NotificationService
                             await notiService.SendNotificationToGroupAsync(
                                 followerIds,
-                                $"Truyện '{comic.Title}' vừa có chương mới: {chapterTitle}",
+                               string.Format(SystemMessages.Notification.NewChapter, comic.Title, chapterTitle),
                                 $"/comics/{comic.Slug}/chapter/{chapterSlug}"
                             );
                         }
@@ -218,7 +219,7 @@ namespace Comax.Business.Services
         public override async Task<ChapterDTO> UpdateAsync(int id, ChapterUpdateDTO dto)
         {
             var entity = await _unitOfWork.Chapters.GetByIdAsync(id);
-            if (entity == null) throw new Exception("Không tìm thấy chương.");
+            if (entity == null) throw new Exception(SystemMessages.Chapter.NotFound);
             _mapper.Map(dto, entity);
 
             await _unitOfWork.CommitAsync();

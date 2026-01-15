@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Comax.Business.Interfaces;
 using Comax.Business.Services.Interfaces;
+using Comax.Common.Constants;
 using Comax.Common.DTOs;
 using Comax.Common.DTOs.Auth;
 using Comax.Common.DTOs.User;
@@ -39,7 +40,7 @@ namespace Comax.Business.Services
             var existingUser = await GetByEmailAsync(registerDto.Email);
             if (existingUser != null)
             {
-                return ServiceResponse<UserDTO>.Error("Email đã tồn tại");
+                return ServiceResponse<UserDTO>.Error(SystemMessages.Auth.EmailExists);
             }
 
             var user = _mapper.Map<User>(registerDto);
@@ -51,7 +52,7 @@ namespace Comax.Business.Services
             await _unitOfWork.CommitAsync();
 
             var userDto = _mapper.Map<UserDTO>(user);
-            return ServiceResponse<UserDTO>.Ok(userDto, "Đăng ký thành công");
+            return ServiceResponse<UserDTO>.Ok(userDto, SystemMessages.Auth.RegisterSuccess);
         }
 
         public async Task<IEnumerable<UserDTO>> GetAllAsync()
@@ -130,7 +131,7 @@ namespace Comax.Business.Services
         public async Task<ServiceResponse<UserDTO>> UpdateProfileAsync(int userId, UserUpdateDTO request)
         {
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
-            if (user == null) return ServiceResponse<UserDTO>.Error("User not found");
+            if (user == null) return ServiceResponse<UserDTO>.Error(SystemMessages.Auth.UserNotFound);
 
             // 1. Map dữ liệu
             _mapper.Map(request, user);

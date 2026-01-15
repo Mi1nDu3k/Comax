@@ -1,5 +1,6 @@
 ﻿using Comax.Business.Services;
 using Comax.Business.Services.Interfaces;
+using Comax.Common.Constants;
 using Comax.Common.DTOs.Auth;
 using Comax.Common.Helpers;
 using Comax.Data.Repositories;
@@ -97,7 +98,7 @@ namespace Comax.Business.Services
             string userName = !string.IsNullOrEmpty(user.Username) ? user.Username : "Người dùng";
             string emailBody = GetOtpTemplate(userName, otp, verifyLink);
 
-            await _emailService.SendEmailAsync(user.Email, "[Comax] Mã xác thực của bạn", emailBody);
+            await _emailService.SendEmailAsync(user.Email, SystemMessages.Email.OtpSubject, emailBody);
 
             return true;
         }

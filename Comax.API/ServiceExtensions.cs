@@ -1,8 +1,9 @@
-﻿using Comax.Business.Interfaces;
+﻿using Comax.Business.Services;
+using Comax.Business.Interfaces;
 using Comax.Business.Services;
 using Comax.Business.Services.Interfaces;
-using Comax.Common.DTOs.Validators;
 using Comax.Common.DTOs;
+using Comax.Common.DTOs.Validators;
 using Comax.Common.Helpers;
 using Comax.Data;
 using Comax.Data.Repositories;
@@ -72,6 +73,7 @@ namespace Comax.API.Extensions
             services.AddScoped<IStorageService, MinioStorageService>();
             services.AddScoped<ISubscriptionService, SubscriptionService>();
             services.AddScoped<IEmailService, EmailService>();
+           
             // 6. Workers (Singleton)
             services.AddSingleton<IViewCountBuffer, ViewCountBuffer>();
             services.AddHostedService<ViewCountWorker>();

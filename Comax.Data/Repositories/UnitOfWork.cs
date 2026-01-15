@@ -45,5 +45,9 @@ namespace Comax.Data.Repositories
         {
             _context.Dispose();
         }
+        public void ClearChangeTracker()
+        {
+            _context.ChangeTracker.Clear();
+        }
     }
 }

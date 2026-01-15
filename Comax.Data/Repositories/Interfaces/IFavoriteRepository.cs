@@ -11,5 +11,6 @@ namespace Comax.Data.Repositories.Interfaces
         Task<Favorite?> GetAsync(int userId, int comicId);
         Task<List<Comic>> GetUserFavoritesAsync(int userId); 
         Task<List<int>> GetUserIdsByComicIdAsync(int comicId);
+        Task<List<int>> GetUserIdsByComicIdPagedAsync(int comicId, int lastUserId, int take);
     }
 }

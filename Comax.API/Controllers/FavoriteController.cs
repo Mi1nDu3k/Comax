@@ -1,5 +1,6 @@
 ﻿using Comax.Business.Interfaces;
 using Comax.Business.Services;
+using Comax.Common.Constants;
 using Comax.Data.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,7 +21,7 @@ public class FavoritesController : ControllerBase
         // Lấy UserId từ Token
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
         var isAdded = await _favService.ToggleFavoriteAsync(userId, comicId);
-        return Ok(new { isFavorited = isAdded, message = isAdded ? "Đã thêm vào yêu thích" : "Đã bỏ yêu thích" });
+        return Ok(new { isFavorited = isAdded, message = isAdded ? SystemMessages.Favorite.Added : SystemMessages.Favorite.Removed });
     }
 
     [HttpGet("me")]
@@ -47,6 +48,6 @@ public class FavoritesController : ControllerBase
     {
         var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
         await _favService.UnfavoriteAsync(userId, comicId);
-        return Ok(new { message = "Đã xóa khỏi danh sách yêu thích." });
+        return Ok(new { message = SystemMessages.Favorite.Deleted });
     }
 }

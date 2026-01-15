@@ -1,8 +1,9 @@
 ﻿using Comax.Business.Interfaces;
+using Comax.Common.Constants;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Minio;
-using Minio.DataModel.Args; // BẮT BUỘC CÓ namespace này ở bản mới
+using Minio.DataModel.Args; 
 using System;
 using System.IO;
 using System.Threading.Tasks;
@@ -41,7 +42,7 @@ namespace Comax.Business.Services
 
         public async Task<string> UploadFileAsync(IFormFile file, string folderName)
         {
-            if (_minioClient == null) throw new InvalidOperationException("Minio Client chưa init.");
+            if (_minioClient == null) throw new InvalidOperationException(SystemMessages.Common.MinioNotInit);
 
             var fileExtension = Path.GetExtension(file.FileName);
             var newFileName = $"{folderName}/{Guid.NewGuid()}{fileExtension}";

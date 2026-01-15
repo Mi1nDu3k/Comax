@@ -34,5 +34,14 @@ namespace Comax.Data.Repositories
                 .Select(f => f.UserId)
                 .ToListAsync();
         }
+        public async Task<List<int>> GetUserIdsByComicIdPagedAsync(int comicId, int lastUserId, int take)
+        {
+            
+            return await _context.Favorites
+                .Where(f => f.ComicId == comicId && f.UserId > lastUserId) 
+                .Take(take)
+                .Select(f => f.UserId)
+                .ToListAsync();
+        }
     }
 }

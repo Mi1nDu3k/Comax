@@ -1,11 +1,12 @@
 ﻿using AutoMapper;
 using Comax.Business.Interfaces;
+using Comax.Common.DTOs.Pagination; 
+using Comax.Common.Constants;
+using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Comax.Data.Entities;
-using System;
-using Comax.Common.DTOs.Pagination; // Cần import
 
 namespace Comax.Business.Services
 {
@@ -68,7 +69,7 @@ namespace Comax.Business.Services
         public virtual async Task<TDto> UpdateAsync(int id, TUpdateDto dto)
         {
             var entity = await _repo.GetByIdAsync(id);
-            if (entity == null) throw new Exception("Entity not found");
+            if (entity == null) throw new Exception(SystemMessages.Common.NotFound); ;
 
             _mapper.Map(dto, entity);
             await _repo.UpdateAsync(entity);

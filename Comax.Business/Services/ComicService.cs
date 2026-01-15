@@ -1,11 +1,13 @@
 ﻿using AutoMapper;
 using Comax.Business.Interfaces;
 using Comax.Business.Services.Interfaces;
+using Comax.Common.Constants;
 using Comax.Common.DTOs;
 using Comax.Common.DTOs.Comic;
 using Comax.Common.DTOs.Pagination;
 using Comax.Common.Helpers;
 using Comax.Data.Entities;
+using Comax.Data.Repositories;
 using Comax.Data.Repositories.Interfaces;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
@@ -174,7 +176,7 @@ namespace Comax.Business.Services
         public override async Task<ComicDTO> UpdateAsync(int id, ComicUpdateDTO dto)
         {
             var entity = await _comicRepo.GetByIdAsync(id);
-            if (entity == null) throw new Exception("Không tìm thấy truyện trong hệ thống.");
+            if (entity == null) throw new Exception(SystemMessages.Comic.NotFound);
 
             string oldSlug = entity.Slug;
 
@@ -350,5 +352,14 @@ namespace Comax.Business.Services
             _comicRepo.HardDelete(comic);
             return await _unitOfWork.CommitAsync() > 0;
         }
+        public async Task<List<ComicDTO>> GetRelatedAsync(int id)
+        {
+            // Gọi Repo lấy Entity
+            var comics = await _comicRepo.GetRelatedComicsAsync(id);
+
+            // Map sang DTO để trả về Frontend
+            return _mapper.Map<List<ComicDTO>>(comics);
+        }
+
     }
 }

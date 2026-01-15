@@ -148,6 +148,36 @@ namespace Comax.Data.Repositories
                 .Where(c => c.IsDeleted && c.DeletedAt <= thresholdDate)
                 .ExecuteDeleteAsync();
         }
+        public async Task<List<Comic>> GetRelatedComicsAsync(int comicId, int limit = 6)
+        {
+            //Lấy thể loại truyện hiện tại
+            var currentComic = await _dbSet
+                .Include(c => c.ComicCategories)
+                .FirstOrDefaultAsync(c => c.Id == comicId);
 
+            if (currentComic == null) return new List<Comic>();
+
+            // Lấy danh sách ID thể loại của truyện này
+            var categoryIds = currentComic.ComicCategories.Select(cc => cc.CategoryId).ToList();
+            var authorId = currentComic.AuthorId;
+
+            // B. Truy vấn tìm truyện tương tự
+            var query = _dbSet.AsNoTracking()
+                .Where(c => c.Id != comicId && !c.IsDeleted) 
+                .Where(c => c.ComicCategories.Any(cc => categoryIds.Contains(cc.CategoryId)) 
+                         || (c.AuthorId != null && c.AuthorId == authorId)); 
+
+            // C. (AI Logic đơn giản) Sắp xếp theo độ ưu tiên:
+            // 1. Cùng tác giả (Ưu tiên cao nhất)
+            // 2. Nhiều lượt xem (Phổ biến)
+            var result = await query
+                .OrderByDescending(c => c.AuthorId == authorId) 
+                .ThenByDescending(c => c.ViewCount) 
+                .Take(limit)
+                .Include(c => c.ComicCategories).ThenInclude(cc => cc.Category) 
+                .ToListAsync();
+
+            return result;
+        }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Comax.Business.Interfaces;
 using Comax.Business.Services.Interfaces;
+using Comax.Common.Constants;
 using Comax.Common.DTOs.Comment;
 using Comax.Common.Enums;
 using Comax.Data.Entities;
@@ -80,7 +81,7 @@ namespace Comax.Business.Services
                         string notificationUrl = $"/truyen/{dto.ComicId}?commentId={entity.Id}";
                         await _notiService.CreateAndSendNotificationAsync(
                          parentComment.UserId, // Tham số 1: UserId
-                         $"{replierName} đã trả lời bình luận của bạn.", // Tham số 2: Message
+                        string.Format(SystemMessages.Notification.CommentReply, replierName),
                          notificationUrl // Tham số 3: Url
  );
                     }
@@ -95,7 +96,7 @@ namespace Comax.Business.Services
         public override async Task<CommentDTO> UpdateAsync(int id, CommentUpdateDTO dto)
         {
             var entity = await _commentRepo.GetByIdAsync(id);
-            if (entity == null) throw new Exception("Comment not found");
+            if (entity == null) throw new Exception(SystemMessages.Comment.NotFound);
 
             int comicId = entity.ComicId;
             _mapper.Map(dto, entity);

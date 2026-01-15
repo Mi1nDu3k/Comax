@@ -1,4 +1,5 @@
 ﻿using Comax.Business.Services.Interfaces;
+using Comax.Common.Constants;
 using Comax.Common.DTOs.Chapter;
 using Comax.Common.DTOs.Comic;
 using Comax.Common.DTOs.Pagination;
@@ -50,17 +51,13 @@ namespace Comax.API.Controllers
             return Ok(comic);
         }
 
-        // --- SỬA LỖI TẠI ĐÂY: GỘP 2 HÀM SEARCH THÀNH 1 ---
-        /// <summary>
-        /// GET: api/Comics/search?q=abc&limit=10
-        /// </summary>
+       
         [HttpGet("search")]
         public async Task<IActionResult> Search([FromQuery] string q, [FromQuery] int limit = 0)
         {
             try
             {
-                // Nếu limit = 0 (không truyền) -> Service sẽ tự lấy mặc định (ví dụ 50 kết quả cho trang Search)
-                // Nếu limit = 6 -> Service lấy 6 kết quả (cho Dropdown)
+                
                 var result = await _comicService.SearchComics(q, limit);
                 return Ok(result);
             }
@@ -69,11 +66,7 @@ namespace Comax.API.Controllers
                 return BadRequest(ex.Message);
             }
         }
-        // --------------------------------------------------
-
-        // --- ADMIN APIs ---
-
-        // Khuyên dùng: Thêm :int để tránh xung đột nếu sau này có route string khác
+       
         [HttpGet("{id:int}")]
         public async Task<ActionResult<ComicDTO>> GetById(int id)
         {
@@ -180,9 +173,9 @@ namespace Comax.API.Controllers
             var result = await _comicService.RestoreAsync(id);
             if (!result)
             {
-                return NotFound(new { message = "Không tìm thấy truyện trong thùng rác." });
+                return NotFound(new { message = SystemMessages.Comic.NotFoundInTrash });
             }
-            return Ok(new { message = "Khôi phục truyện thành công." });
+            return Ok(new { message = SystemMessages.Comic.RestoreSuccess });
         }
 
         [HttpDelete("{id}/purge")]
@@ -192,9 +185,16 @@ namespace Comax.API.Controllers
             var result = await _comicService.PurgeAsync(id);
             if (!result)
             {
-                return NotFound(new { message = "Không tìm thấy truyện hoặc đã bị xóa trước đó." });
+                return NotFound(new { message = SystemMessages.Comic.NotFound });
             }
-            return Ok(new { message = "Đã xóa vĩnh viễn truyện và ảnh liên quan." });
+            return Ok(new { message = SystemMessages.Comic.PurgeSuccess });
         }
+        [HttpGet("{id}/related")]
+        public async Task<IActionResult> GetRelated(int id)
+        {
+            var result = await _comicService.GetRelatedAsync(id);
+            return Ok(result);
+        }
+
     }
 }

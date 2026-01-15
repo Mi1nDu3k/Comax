@@ -1,4 +1,5 @@
 ﻿using Comax.Business.Interfaces;
+using Comax.Common.Constants;
 using Comax.Common.DTOs.Subscription;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,17 +28,17 @@ namespace Comax.API.Controllers
             int userId = int.Parse(userIdClaim.Value);
 
             // 2. Kiểm tra tính hợp lệ của số tháng
-            if (request.Months <= 0) return BadRequest("Số tháng không hợp lệ.");
+            if (request.Months <= 0)BadRequest(SystemMessages.Subscription.InvalidMonths);
 
             // 3. Gọi Service xử lý nâng cấp VIP và tính ngày hết hạn
             var result = await _subscriptionService.ProcessVipUpgradeAsync(userId, request.Months);
 
             if (result)
             {
-                return Ok(new { message = "Gia hạn VIP thành công!" });
+                return Ok(new { message = SystemMessages.Subscription.ExtendSuccess });
             }
 
-            return BadRequest("Không thể thực hiện gia hạn.");
+            return BadRequest(SystemMessages.Subscription.ExtendFailed);
         }
     }
 }

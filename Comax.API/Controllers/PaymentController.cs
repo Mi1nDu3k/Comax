@@ -1,4 +1,5 @@
 ﻿using Comax.Business.Services.Interfaces;
+using Comax.Common.Constants;
 using Comax.Common.DTOs.Payment;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.RegularExpressions;
@@ -24,22 +25,22 @@ namespace Comax.API.Controllers
         public async Task<IActionResult> SePayWebhook([FromBody] SePayWebhookDTO payload)
         {
 
-            string mySePayApiToken = _config["SePay:ApiToken"]; // Lấy từ appsettings.json
+            string mySePayApiToken = _config["SePay:ApiToken"]; 
             string receivedToken = Request.Headers["Authorization"].ToString().Replace("Bearer ", "");
 
             if (string.IsNullOrEmpty(mySePayApiToken) || receivedToken != mySePayApiToken)
             {
-                _logger.LogWarning("SePay Webhook: Sai Token bảo mật.");
-                // return Unauthorized(); // Mẹo: Nên return Ok() giả vờ để SePay không gửi lại liên tục nếu config sai
+                _logger.LogWarning(SystemMessages.Payment.InvalidToken);
+               return Ok();
             }
 
-            // 2. Chỉ xử lý giao dịch tiền vào ("in")
+            
             if (payload.TransferType?.ToLower() != "in")
             {
-                return Ok(new { success = true, message = "Ignored outgoing transaction" });
+                return Ok(new { success = true, message = SystemMessages.Payment.IgnoredTransaction });
             }
 
-            // 3. Phân tích nội dung chuyển khoản (Content)
+           
             // Quy ước nội dung: "COMAX [USER_ID]" (Ví dụ: COMAX 105)
             // Dùng Regex để tách số ID ra
             var match = Regex.Match(payload.Content ?? "", @"COMAX\s+(\d+)", RegexOptions.IgnoreCase);
@@ -58,13 +59,13 @@ namespace Comax.API.Controllers
                     var result = await _userService.UpgradeToVipAsync(userId);
                     if (result)
                     {
-                        _logger.LogInformation($"Đã kích hoạt VIP cho User ID: {userId}");
+                        _logger.LogInformation(string.Format(SystemMessages.Payment.LogVipActivated, userId));
                     }
                 }
             }
             else
             {
-                _logger.LogWarning($"Không tìm thấy User ID trong nội dung: {payload.Content}");
+                _logger.LogWarning(string.Format(SystemMessages.Payment.LogUserIdNotFound, payload.Content));
             }
 
             return Ok(new { success = true });

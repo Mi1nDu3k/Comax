@@ -1,8 +1,9 @@
 ﻿    using Comax.Business.Interfaces;
+using Comax.Common.Constants;
 using Comax.Common.DTOs.Comment;
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
 using System.Security.Claims;
+using System.Threading.Tasks;
 
 
 namespace Comax.API.Controllers 
@@ -38,7 +39,7 @@ namespace Comax.API.Controllers
             }
             else
             {
-                return Unauthorized("Bạn cần đăng nhập để bình luận");
+                Unauthorized(SystemMessages.Comment.LoginRequired);
             }
             var comment = await _service.CreateAsync(dto);
             return Ok(comment);

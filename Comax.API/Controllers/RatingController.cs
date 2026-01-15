@@ -1,4 +1,5 @@
 ﻿using Comax.Business.Interfaces;
+using Comax.Common.Constants;
 using Comax.Common.DTOs;
 using Comax.Common.DTOs.Rating;
 using Microsoft.AspNetCore.Authorization;
@@ -58,7 +59,7 @@ namespace Comax.API.Controllers
 
                 var newAverage = await _ratingService.AddOrUpdateRatingAsync(userId, request);
 
-                return Ok(new { message = "Đánh giá thành công!", newRating = newAverage });
+                return Ok(new { message = SystemMessages.Rating.Success, newRating = newAverage });
             }
             catch (Exception ex)
             {
@@ -87,7 +88,7 @@ namespace Comax.API.Controllers
 
             if (idClaim == null)
             {
-                throw new Exception("Token hợp lệ nhưng không tìm thấy Claim chứa ID user.");
+                throw new Exception(SystemMessages.Common.UserClaimNotFound);
             }
 
             return int.Parse(idClaim.Value);

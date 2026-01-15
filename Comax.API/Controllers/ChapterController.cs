@@ -1,5 +1,6 @@
 ﻿using Comax.Business.Services;
 using Comax.Business.Services.Interfaces;
+using Comax.Common.Constants;
 using Comax.Common.DTOs.Chapter;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -29,7 +30,7 @@ namespace Comax.API.Controllers
                 // Validate cơ bản
                 if (dto.Images == null || dto.Images.Count == 0)
                 {
-                    return BadRequest("Vui lòng chọn ít nhất 1 ảnh.");
+                    BadRequest(SystemMessages.Chapter.ImageRequired);
                 }
 
                 var result = await _chapterService.CreateWithImagesAsync(dto);
@@ -55,7 +56,7 @@ namespace Comax.API.Controllers
         public async Task<ActionResult<ChapterDTO>> GetForReader(string comicSlug, string chapterSlug)
         {
             var chapter = await _chapterService.GetChapterBySlugsAsync(comicSlug, chapterSlug);
-            if (chapter == null) return NotFound(new { message = "Chapter not found" });
+            if (chapter == null) return NotFound(new { message = SystemMessages.Chapter.NotFound });
             await _comicService.IncreaseViewCountAsync(chapter.ComicId);
             return Ok(chapter);
         }

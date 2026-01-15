@@ -1,7 +1,7 @@
-﻿version: '3.8'
+﻿
 
 services:
-  # 1. DATABASE (Dùng port 3307 để tránh lỗi)
+  # 1. DATABASE
   db:
     image: mysql:8.0
     container_name: comax_db
@@ -10,7 +10,7 @@ services:
       MYSQL_ROOT_PASSWORD: "11111111"
       MYSQL_DATABASE: "ComaxDb"
     ports:
-      - "3307:3306"  # <--- QUAN TRỌNG: Đã đổi sang 3307
+      - "3307:3306"
     volumes:
       - db_data:/var/lib/mysql
     networks:
@@ -19,8 +19,8 @@ services:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 20s
       retries: 10
-
-  # 2. MINIO (Lưu trữ ảnh)
+    
+  # 2. MINIO
   minio:
     image: quay.io/minio/minio:latest
     container_name: minio
@@ -37,7 +37,7 @@ services:
     networks:
       - comax-network
 
-  # 3. SETUP MINIO (Sidecar)
+  # 3. SETUP MINIO
   createbuckets:
     image: minio/mc:latest
     depends_on:
@@ -54,7 +54,7 @@ services:
       exit 0;
       "
 
-  # 4. REDIS (Cache)
+  # 4. REDIS
   redis:
     image: redis:alpine
     container_name: comax_redis
@@ -83,6 +83,8 @@ services:
         condition: service_started
     networks:
       - comax-network
+
+  
 
 volumes:
   redis_data:

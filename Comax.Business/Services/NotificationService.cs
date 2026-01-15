@@ -3,6 +3,7 @@ using Comax.Business.Services.Interfaces;
 using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,6 +15,8 @@ namespace Comax.Business.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IHubContext<NotificationHub> _hubContext;
+        private readonly ILogger<NotificationService> _logger;
+
         private const int BATCH_SIZE = 100;
 
         public NotificationService(IUnitOfWork unitOfWork, IHubContext<NotificationHub> hubContext)
@@ -27,12 +30,12 @@ namespace Comax.Business.Services
             return await _unitOfWork.Notifications.GetByUserIdAsync(userId, page, pageSize);
         }
 
+       
         public async Task CreateAndSendNotificationAsync(int userId, string message, string url)
         {
             var noti = new Notification
             {
                 UserId = userId,
-
                 Message = message,
                 Url = url,
                 IsRead = false,
@@ -52,6 +55,76 @@ namespace Comax.Business.Services
             });
         }
 
+        
+        public async Task NotifyComicFollowersAsync(int comicId, string message, string url)
+        {
+            int lastUserId = 0; 
+            bool hasMore = true;
+
+            while (hasMore)
+            {
+          
+                var userIds = await _unitOfWork.Favorites.GetUserIdsByComicIdPagedAsync(comicId, lastUserId, BATCH_SIZE);
+
+                if (!userIds.Any())
+                {
+                    hasMore = false;
+                    break; 
+                }
+
+             
+                lastUserId = userIds.Last();
+
+                var notiList = new List<Notification>();
+                var now = DateTime.UtcNow;
+
+                foreach (var uid in userIds)
+                {
+                    notiList.Add(new Notification
+                    {
+                        UserId = uid,
+                        Message = message,
+                        Url = url,
+                        IsRead = false,
+                        CreatedAt = now
+                    });
+                }
+
+                
+                await _unitOfWork.Notifications.AddRangeAsync(notiList);
+                await _unitOfWork.CommitAsync();
+
+            
+                try
+                {
+                    var signalRTasks = notiList.Select(noti =>
+                        _hubContext.Clients.Group($"User_{noti.UserId}")
+                            .SendAsync("ReceiveNotification", new
+                            {
+                                id = noti.Id,
+                                message = noti.Message,
+                                url = noti.Url,
+                                isRead = false,
+                                createdAt = noti.CreatedAt
+                            })
+                    );
+
+                    
+                    await Task.WhenAll(signalRTasks);
+                }
+                catch
+                {
+                     _logger.LogError("Lỗi gửi SignalR batch...");
+                    
+                }
+
+             
+                _unitOfWork.ClearChangeTracker();
+                await Task.Delay(20);
+            }
+        }
+
+     
         public async Task SendNotificationToGroupAsync(List<int> userIds, string message, string url)
         {
             if (userIds == null || !userIds.Any()) return;
@@ -77,10 +150,8 @@ namespace Comax.Business.Services
                 await _unitOfWork.Notifications.AddRangeAsync(notiList);
                 await _unitOfWork.CommitAsync();
 
-                var tasks = new List<Task>();
-                foreach (var noti in notiList)
-                {
-                    tasks.Add(_hubContext.Clients.Group($"User_{noti.UserId}")
+                var tasks = notiList.Select(noti =>
+                    _hubContext.Clients.Group($"User_{noti.UserId}")
                         .SendAsync("ReceiveNotification", new
                         {
                             id = noti.Id,
@@ -88,10 +159,13 @@ namespace Comax.Business.Services
                             url = noti.Url,
                             isRead = false,
                             createdAt = noti.CreatedAt
-                        }));
-                }
+                        })
+                );
+
                 await Task.WhenAll(tasks);
-                await Task.Delay(20);
+
+                // Cũng nên clear RAM ở đây nếu dùng hàm cũ
+                _unitOfWork.ClearChangeTracker();
             }
         }
 
@@ -112,7 +186,6 @@ namespace Comax.Business.Services
             await _unitOfWork.CommitAsync();
         }
 
-        // --- SỬA TẠI ĐÂY ---
         public async Task DeleteAsync(int id)
         {
             await _unitOfWork.Notifications.DeleteAsync(id);

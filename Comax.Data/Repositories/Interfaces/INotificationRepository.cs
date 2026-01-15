@@ -8,5 +8,6 @@ namespace Comax.Data.Repositories.Interfaces
     {
         Task<List<Notification>> GetByUserIdAsync(int userId, int page, int pageSize);
         Task MarkAllAsReadAsync(int userId);
+       
     }
 }

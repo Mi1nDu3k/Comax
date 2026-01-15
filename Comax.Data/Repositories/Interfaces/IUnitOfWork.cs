@@ -18,5 +18,6 @@ namespace Comax.Data.Repositories.Interfaces
         INotificationRepository Notifications { get; }
         IHistoryRepository Histories { get; }
         Task<int> CommitAsync();
+        void ClearChangeTracker();
     }
 }

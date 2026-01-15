@@ -1,5 +1,6 @@
 ﻿using Comax.Business.Interfaces;
 using Comax.Business.Services.Interfaces;
+using Comax.Common.Constants;
 using Comax.Common.DTOs.Auth;
 using Comax.Common.DTOs.User;
 using Comax.Shared; // Giả sử chứa ErrorMessages
@@ -41,7 +42,7 @@ namespace Comax.API.Controllers
             var token = await _authService.LoginAsync(request);
 
             if (string.IsNullOrEmpty(token))
-                return Unauthorized(new { message = "Email hoặc mật khẩu không đúng" });
+                return Unauthorized(new { message = SystemMessages.Auth.LoginFailed });
 
             // Lấy thông tin user để trả về FE
             var user = await _userService.GetByEmailAsync(request.Email);
@@ -64,8 +65,7 @@ namespace Comax.API.Controllers
             var userId = int.Parse(userIdString);
             var user = await _userService.GetByIdAsync(userId);
 
-            if (user == null) return NotFound(new { message = "Không tìm thấy user" });
-
+            return NotFound(new { message = SystemMessages.Common.UserNotFound });
             return Ok(user);
         }
 
@@ -102,7 +102,7 @@ namespace Comax.API.Controllers
         {
             var result = await _userService.UpgradeToVipAsync(id);
             if (!result) return NotFound(new { message = ErrorMessages.Auth.UserNotFound });
-            return Ok(new { message = ErrorMessages.Auth.VIPUpgradedSuccess });
+            return Ok(new { message = SystemMessages.Auth.VipUpgraded });
         }
 
         // 7. Hạ cấp VIP
@@ -112,7 +112,7 @@ namespace Comax.API.Controllers
         {
             var result = await _userService.DowngradeFromVipAsync(id);
             if (!result) return NotFound(new { message = ErrorMessages.Auth.UserNotFound });
-            return Ok(new { message = ErrorMessages.Auth.VIPDowngradedSuccess });
+            return Ok(new { message = SystemMessages.Auth.VipDowngraded });
         }
 
         // 8. Danh sách VIP
@@ -131,7 +131,7 @@ namespace Comax.API.Controllers
         {
             var result = await _userService.BanUserAsync(id);
             if (!result) return NotFound(new { message = ErrorMessages.Auth.UserNotFound });
-            return Ok(new { message = ErrorMessages.Auth.Banned });
+            return Ok(new { message = SystemMessages.Auth.Banned });
         }
 
         // 10. Unban User
@@ -140,8 +140,8 @@ namespace Comax.API.Controllers
         public async Task<IActionResult> UnbanUser(int id)
         {
             var result = await _userService.UnbanUserAsync(id);
-            if (!result) return NotFound(new { message = ErrorMessages.Auth.UserNotFound });
-            return Ok(new { message = ErrorMessages.Auth.Unbanned });
+            if (!result) return NotFound(new { message = SystemMessages.Common.UserNotFound });
+            return Ok(new { message = SystemMessages.Auth.Unbanned });
         }
 
         // 11. Xóa User
@@ -159,10 +159,10 @@ namespace Comax.API.Controllers
             var result = await _authService.ForgotPasswordAsync(dto.Email);
             if (!result)
             {
-                // Để bảo mật, dù email không tồn tại vẫn báo thành công để tránh dò email
-                return Ok(new { message = "Nếu email tồn tại, hướng dẫn đặt lại mật khẩu đã được gửi." });
+                
+               return Unauthorized(new { message = SystemMessages.Auth.LoginFailed });
             }
-            return Ok(new { message = "Vui lòng kiểm tra email để đặt lại mật khẩu." });
+            return Ok(new { SystemMessages.Auth.EmailCheckRequired });
         }
 
         [HttpPost("reset-password")]
@@ -173,10 +173,10 @@ namespace Comax.API.Controllers
             var result = await _authService.ResetPasswordAsync(dto);
             if (!result)
             {
-                return BadRequest(new { message = "Token không hợp lệ hoặc đã hết hạn." });
+                return BadRequest(new { SystemMessages.Common.TokenInvalid });
             }
 
-            return Ok(new { message = "Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại." });
+            return Ok(new { SystemMessages.Auth.ResetPasswordSuccess });
         }
         [HttpPost("verify-otp")]
         public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpDTO dto)
@@ -189,11 +189,11 @@ namespace Comax.API.Controllers
 
             if (!isValid)
             {
-                return BadRequest(new { message = "Mã xác thực không đúng hoặc đã hết hạn." });
+                return BadRequest(new { message = SystemMessages.Auth.OtpInvalid });
             }
 
             // Nếu đúng, trả về OK để Frontend cho phép user nhập mật khẩu mới
-            return Ok(new { message = "Mã xác thực hợp lệ." });
+            return Ok(new { SystemMessages.Auth.OtpValid });
         }
     }
 }

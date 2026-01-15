@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using Comax.Business.Services.Interfaces;
+using Comax.Common.Constants;
 using Comax.Common.DTOs.History;
 using Comax.Data.Entities;
 using Comax.Data.Repositories.Interfaces;
@@ -28,7 +29,7 @@ namespace Comax.Business.Services
 
         public async Task AddOrUpdateHistoryAsync(int userId, HistoryCreateDTO dto)
         {
-            if (userId <= 0) throw new Exception("User ID Invalid");
+            if (userId <= 0) throw new Exception(SystemMessages.Comment.NotFound);
 
 
             var existing = await _unitOfWork.Histories.GetByUserAndComicAsync(userId, dto.ComicId);
@@ -59,7 +60,7 @@ namespace Comax.Business.Services
             var rows = await _unitOfWork.CommitAsync();
 
 
-            if (rows == 0) throw new Exception("DB Error: SaveChanges trả về 0 dòng!");
+            if (rows == 0) throw new Exception(SystemMessages.Common.DbSaveError);
         }
 
         public async Task DeleteHistoryAsync(int userId, int id)
