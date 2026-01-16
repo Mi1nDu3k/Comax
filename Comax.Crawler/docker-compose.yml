@@ -1,0 +1,31 @@
+﻿version: '3.8'
+services:
+  
+ crawler:
+    build:
+      context: .  # Đứng ở thư mục gốc để copy được Data và Common
+      dockerfile: Comax.Crawler/Dockerfile
+    container_name: comax-crawler
+    restart: always
+    environment:
+      # KẾT NỐI DB: Dùng tên service 'db', port nội bộ 3306
+      - ConnectionStrings__DefaultConnection=Server=db;Port=3306;Database=ComaxDb;User=root;Password=11111111;
+      
+      # KẾT NỐI MINIO: Dùng tên service 'minio', port nội bộ 9000
+      - Minio__Endpoint=minio:9000
+      - Minio__AccessKey=minioadmin
+      - Minio__SecretKey=minioadmin
+      - Minio__BucketName=comics-bucket
+      - Minio__UseSSL=false
+      
+      # KẾT NỐI FLARESOLVERR: Dùng tên service 'flaresolverr', port nội bộ 8191
+      - Flaresolverr__Url=http://flaresolverr:8191/v1
+    depends_on:
+      db:
+        condition: service_healthy
+      flaresolverr:
+        condition: service_started
+      minio:
+        condition: service_started
+    networks:
+      - comax-network

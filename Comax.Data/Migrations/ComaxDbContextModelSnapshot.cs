@@ -110,8 +110,8 @@ namespace Comax.Data.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("ChapterNumber")
-                        .HasColumnType("int");
+                    b.Property<float>("ChapterNumber")
+                        .HasColumnType("float");
 
                     b.Property<int>("ComicId")
                         .HasColumnType("int");
@@ -183,7 +183,6 @@ namespace Comax.Data.Migrations
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<bool>("IsDeleted")

@@ -11,7 +11,7 @@ namespace Comax.Data.Entities
         [Required]
         [MaxLength(255)]
         public string Slug { get; set; }
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         public string CoverImage { get; set; } // Link ảnh bìa
         public float Rating { get; set; }      // Điểm đánh giá (VD: 4.5)

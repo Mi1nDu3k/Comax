@@ -65,7 +65,12 @@ namespace Comax.API.Controllers
             var userId = int.Parse(userIdString);
             var user = await _userService.GetByIdAsync(userId);
 
-            return NotFound(new { message = SystemMessages.Common.UserNotFound });
+            // ✅ SỬA LẠI: Chỉ return NotFound nều user không tồn tại
+            if (user == null)
+            {
+                return NotFound(new { message = SystemMessages.Common.UserNotFound });
+            }
+
             return Ok(user);
         }
 

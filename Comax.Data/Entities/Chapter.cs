@@ -14,7 +14,7 @@ namespace Comax.Data.Entities
         public string Slug { get; set; }  
         public int ComicId { get; set; }
         public int Order { get; set; }
-        public int ChapterNumber { get; set; }
+        public float ChapterNumber { get; set; }
         public string? Content { get; set; }
         public Comic Comic { get; set; }
         public DateTime PublishDate { get; set; } = DateTime.UtcNow;
